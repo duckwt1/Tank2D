@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.tank2d.client.ui.mainmenu.MainMenuController"
+            prefWidth="500" prefHeight="400"
+            style="-fx-background-color: linear-gradient(to bottom, #283e51, #485563);">
+
+    <VBox alignment="CENTER" spacing="15" prefWidth="300" prefHeight="400"
+          layoutX="100" layoutY="40">
+        <Label fx:id="lblTitle" text="PIXEL TANK ONLINE"
+               style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;" />
+
+        <Button fx:id="btnCreateRoom" text="Create Room" prefWidth="200" style="-fx-font-size:16;" />
+        <Button fx:id="btnJoinRoom" text="Join Room" prefWidth="200" style="-fx-font-size:16;" />
+        <Button fx:id="btnSettings" text="Settings" prefWidth="200" style="-fx-font-size:16;" />
+        <Button fx:id="btnQuit" text="Quit" prefWidth="200" style="-fx-font-size:16;" />
+    </VBox>
+</AnchorPane>
