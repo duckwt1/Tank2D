@@ -5,6 +5,8 @@ module com.tank2d.tank2d {
     requires java.desktop;
 
     requires org.controlsfx.controls;
+    requires javafx.graphics;
+    requires org.json;
 
     opens com.tank2d.client.ui.login to javafx.fxml;
     opens com.tank2d.client.ui.mainmenu to javafx.fxml;
