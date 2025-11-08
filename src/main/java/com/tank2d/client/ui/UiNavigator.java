@@ -1,6 +1,7 @@
 package com.tank2d.client.ui;
 
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -20,4 +21,17 @@ public class UiNavigator {
             e.printStackTrace();
         }
     }
+
+    public static <T> T loadSceneWithController(String fxml) {
+        try {
+            FXMLLoader loader = new FXMLLoader(UiNavigator.class.getResource(fxml));
+            Parent root = loader.load();
+            mainStage.setScene(new Scene(root));
+            return loader.getController();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 }
