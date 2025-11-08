@@ -24,4 +24,7 @@ public enum PacketType {
     BUY_OK,
     BUY_FAIL,
 
+
+    CREATE_ROOM_HOST,
+    CREATE_ROOM_CLIENT
 }
