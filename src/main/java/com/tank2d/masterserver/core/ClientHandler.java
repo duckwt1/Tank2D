@@ -145,9 +145,10 @@ public class ClientHandler implements Runnable {
         resp.data.put("roomId", room.getId());
         resp.data.put("roomName", room.getName());
         resp.data.put("maxPlayers", room.getMaxPlayers());
+        resp.data.put("players", room.getPlayerNames());
 
-        send(resp);
         System.out.println("Room created: " + room.getName() + " (#" + room.getId() + ") by " + username);
+        send(resp);
     }
 
     private void handleJoinRoom(Packet p) {
@@ -240,6 +241,8 @@ public class ClientHandler implements Runnable {
         Packet p = new Packet(type);
         p.data.put("msg", message);
         p.data.put("eventType", "room_event");
+        p.data.put("players", room.getPlayerNames());
+        p.data.put("playerCount", room.getPlayerCount());
         
         for (ClientHandler client : room.getPlayers()) {
             client.send(p);

@@ -26,6 +26,7 @@ public enum PacketType {
     ROOM_LIST_DATA,
     JOIN_ROOM,
     ROOM_JOINED,
+    ROOM_JOIN_FAIL,
     LEAVE_ROOM,
     ROOM_UPDATE,
     PLAYER_READY,

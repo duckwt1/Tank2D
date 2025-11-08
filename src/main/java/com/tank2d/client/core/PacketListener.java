@@ -16,9 +16,9 @@ public interface PacketListener {
     default void onRegisterFail(String message) {}
     
     // Room events
-    default void onRoomCreated(int roomId, String roomName, int maxPlayers) {}
+    default void onRoomCreated(int roomId, String roomName, int maxPlayers, List<String> players) {}
     default void onRoomJoined(int roomId, String roomName, int maxPlayers, List<String> players) {}
-    default void onRoomUpdate(String message) {}
+    default void onRoomUpdate(String message, List<String> players) {}
     default void onRoomListReceived(List<Map<String, Object>> rooms) {}
     
     // Game events

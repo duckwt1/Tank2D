@@ -2,8 +2,6 @@ package com.tank2d.client.ui;
 
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
-import com.tank2d.shared.Packet;
-import com.tank2d.shared.PacketType;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -30,10 +28,9 @@ public class LoginController implements PacketListener {
 
     @FXML
     public void onLoginClick() {
-        Packet p = new Packet(PacketType.LOGIN);
-        p.data.put("username", txtUsername.getText());
-        p.data.put("password", txtPassword.getText());
-        client.sendPacket(p);
+        String username = txtUsername.getText();
+        String password = txtPassword.getText();
+        client.login(username, password);
     }
 
     @FXML

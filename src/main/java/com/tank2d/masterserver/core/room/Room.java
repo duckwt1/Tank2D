@@ -26,6 +26,7 @@ public class Room {
     public ClientHandler getHost() { return host; }
     public List<ClientHandler> getPlayers() { return players; }
     public int getMaxPlayers() { return maxPlayers; }
+    public int getPlayerCount() { return players.size(); }
     public boolean hasPassword() { return password != null && !password.isEmpty(); }
     public boolean isFull() { return players.size() >= maxPlayers; }
     
@@ -50,7 +51,11 @@ public class Room {
     public List<String> getPlayerNames() {
         List<String> names = new ArrayList<>();
         for (ClientHandler player : players) {
-            names.add(player.getUsername());
+            String playerName = player.getUsername();
+            if (player == host) {
+                playerName += " (Host)";
+            }
+            names.add(playerName);
         }
         return names;
     }

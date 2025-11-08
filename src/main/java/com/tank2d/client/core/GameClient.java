@@ -39,6 +39,25 @@ public class GameClient {
             }
         }
     }
+    
+    // ========== Authentication Methods ==========
+    
+    public void login(String username, String password) {
+        Packet p = new Packet(PacketType.LOGIN);
+        p.data.put("username", username);
+        p.data.put("password", password);
+        sendPacket(p);
+    }
+    
+    public void register(String username, String password, String email) {
+        Packet p = new Packet(PacketType.REGISTER);
+        p.data.put("username", username);
+        p.data.put("password", password);
+        p.data.put("email", email);
+        sendPacket(p);
+    }
+    
+    // ========== Room Management Methods ==========
 
     public void createRoom(String roomName, int maxPlayers, String password) {
         Packet p = new Packet(PacketType.CREATE_ROOM);
@@ -108,7 +127,8 @@ public class GameClient {
                         String name = (String) p.data.get("roomName");
                         int id = (int) p.data.get("roomId");
                         int maxPlayers = (int) p.data.get("maxPlayers");
-                        listener.onRoomCreated(id, name, maxPlayers);
+                        List<String> players = (List<String>) p.data.get("players");
+                        listener.onRoomCreated(id, name, maxPlayers, players);
                     }
 
                     case ROOM_JOINED -> {
@@ -121,7 +141,8 @@ public class GameClient {
 
                     case ROOM_UPDATE -> {
                         String message = (String) p.data.get("msg");
-                        listener.onRoomUpdate(message);
+                        List<String> players = (List<String>) p.data.get("players");
+                        listener.onRoomUpdate(message, players);
                     }
 
                     case ROOM_LIST_DATA -> {

@@ -2,8 +2,6 @@ package com.tank2d.client.ui;
 
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
-import com.tank2d.shared.Packet;
-import com.tank2d.shared.PacketType;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -28,6 +26,7 @@ public class RegisterController implements PacketListener {
         String username = txtUsername.getText();
         String password = txtPassword.getText();
         String confirmPassword = txtConfirmPassword.getText();
+        String email = txtEmail.getText();
 
         if (username.isEmpty() || password.isEmpty()) {
             lblStatus.setText("Please fill in all information!");
@@ -39,11 +38,7 @@ public class RegisterController implements PacketListener {
             return;
         }
 
-        Packet p = new Packet(PacketType.REGISTER);
-        p.data.put("username", username);
-        p.data.put("password", password);
-        p.data.put("email", txtEmail.getText());
-        client.sendPacket(p);
+        client.register(username, password, email);
     }
 
     @FXML

@@ -2,9 +2,6 @@ package com.tank2d.client.ui;
 
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
-import com.tank2d.client.ui.UiNavigator;
-import com.tank2d.shared.Packet;
-import com.tank2d.shared.PacketType;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -27,9 +24,6 @@ public class WaitingRoomController implements PacketListener {
     private int maxPlayers;
     private boolean isHost = true;
 
-    // -------------------------------
-    // SETUP METHODS
-    // -------------------------------
     public void setClient(GameClient client) {
         this.client = client;
         client.setPacketListener(this);
@@ -40,9 +34,6 @@ public class WaitingRoomController implements PacketListener {
         this.roomName = roomName;
         this.maxPlayers = maxPlayers;
         lblRoomName.setText("Room: " + roomName + " (ID: " + roomId + ")");
-        updatePlayerCount(1, maxPlayers);
-        listPlayers.getItems().clear();
-        listPlayers.getItems().add("You (Host)");
     }
 
     public void setHost(boolean host) {
@@ -58,36 +49,24 @@ public class WaitingRoomController implements PacketListener {
         btnStartGame.setVisible(false);
     }
 
-    // -------------------------------
-    // BUTTON HANDLERS
-    // -------------------------------
-
     @FXML
     private void onReady() {
         if (client == null) return;
         lblStatus.setText("You are ready!");
-        Packet ready = new Packet(PacketType.valueOf("PLAYER_READY"));
-        ready.data.put("roomId", roomId);
-        client.sendPacket(ready);
+        client.setReady(true);
     }
 
     @FXML
     private void onStartGame() {
         if (client == null) return;
         lblStatus.setText("Starting game...");
-        Packet start = new Packet(PacketType.valueOf("START_GAME"));
-        start.data.put("roomId", roomId);
-        client.sendPacket(start);
-        // TODO: chuyển sang màn hình game thực tế
-        // UiNavigator.loadScene("game_scene.fxml");
+        client.startGame();
     }
 
     @FXML
     private void onLeaveRoom() {
         if (client == null) return;
-        Packet leave = new Packet(PacketType.valueOf("LEAVE_ROOM"));
-        leave.data.put("roomId", roomId);
-        client.sendPacket(leave);
+        client.leaveRoom();
         
         // Navigate back to main menu with client
         Platform.runLater(() -> {
@@ -96,13 +75,17 @@ public class WaitingRoomController implements PacketListener {
         });
     }
 
-    // -------------------------------
-    // UPDATE HELPERS
-    // -------------------------------
     public void updatePlayerList(List<String> players) {
+        System.out.println("[WaitingRoom] updatePlayerList called with: " + players);
+        System.out.println("[WaitingRoom] listPlayers is null? " + (listPlayers == null));
         Platform.runLater(() -> {
+            if (listPlayers == null) {
+                System.out.println("[WaitingRoom] ERROR: listPlayers is NULL!");
+                return;
+            }
             listPlayers.getItems().clear();
             for (String playerName : players) {
+                System.out.println("[WaitingRoom] Adding player: " + playerName);
                 listPlayers.getItems().add(playerName);
             }
             updatePlayerCount(players.size(), maxPlayers);
@@ -132,8 +115,7 @@ public class WaitingRoomController implements PacketListener {
         Platform.runLater(() -> lblStatus.setText(msg));
     }
     
-    // ========== PacketListener Implementation ==========
-    
+
     @Override
     public void onRoomJoined(int roomId, String roomName, int maxPlayers, List<String> players) {
         Platform.runLater(() -> {
@@ -144,10 +126,12 @@ public class WaitingRoomController implements PacketListener {
     }
     
     @Override
-    public void onRoomUpdate(String message) {
+    public void onRoomUpdate(String message, List<String> players) {
         Platform.runLater(() -> {
             lblStatus.setText("[ROOM] " + message);
-            // TODO: Parse message to update player list
+            if (players != null) {
+                updatePlayerList(players);
+            }
         });
     }
     

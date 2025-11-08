@@ -18,7 +18,7 @@ public class MainMenuController implements PacketListener {
 
     @FXML
     public void initialize() {
-        lblTitle.setText("PIXEL TANK ONLINE - MAIN MENU");
+//        lblTitle.setText("PIXEL TANK ONLINE - MAIN MENU");
 
         btnCreateRoom.setOnAction(e -> onCreateRoom());
         btnJoinRoom.setOnAction(e -> onJoinRoom());
@@ -43,9 +43,10 @@ public class MainMenuController implements PacketListener {
     }
 
     private void onJoinRoom() {
-        // TODO: load join room scene
-        System.out.println("Join Room clicked!");
-//        UiNavigator.loadScene("join_room.fxml");
+        Platform.runLater(() -> {
+            JoinRoomController controller = UiNavigator.loadSceneWithController("join_room.fxml");
+            controller.setClient(client);
+        });
     }
 
     private void onSettings() {

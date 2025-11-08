@@ -2,13 +2,13 @@ package com.tank2d.client.ui;
 
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
-import com.tank2d.shared.Packet;
-import com.tank2d.shared.PacketType;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+
+import java.util.List;
 
 public class CreateRoomController implements PacketListener {
 
@@ -54,13 +54,7 @@ public class CreateRoomController implements PacketListener {
             return;
         }
 
-        // Gửi gói tin tạo phòng
-        Packet p = new Packet(PacketType.CREATE_ROOM);
-        p.data.put("roomName", roomName);
-        p.data.put("maxPlayers", maxPlayers);
-        p.data.put("password", password);
-        client.sendPacket(p);
-
+        client.createRoom(roomName, maxPlayers, password);
         showAlert("Creating room...");
     }
 
@@ -75,12 +69,13 @@ public class CreateRoomController implements PacketListener {
     // ========== PacketListener Implementation ==========
     
     @Override
-    public void onRoomCreated(int roomId, String roomName, int maxPlayers) {
+    public void onRoomCreated(int roomId, String roomName, int maxPlayers, List<String> players) {
         Platform.runLater(() -> {
             WaitingRoomController controller = UiNavigator.loadSceneWithController("waiting_room.fxml");
             controller.setClient(client);
             controller.setRoomData(roomId, roomName, maxPlayers);
             controller.setHost(true);
+            controller.updatePlayerList(players);
             // Transfer listener to WaitingRoomController
             client.setPacketListener(controller);
         });
