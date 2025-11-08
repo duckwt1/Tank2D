@@ -147,6 +147,14 @@ public class Player extends Entity {
     {
         this.x = x;
     }
+    public double getGunAngle() {
+        return gunAngle;
+    }
+
+    public void setGunAngle(double angle) {
+        this.gunAngle = angle;
+    }
+
     public void setY(double y)
     {
         this.y = y;

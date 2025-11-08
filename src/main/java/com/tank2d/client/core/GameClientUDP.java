@@ -25,17 +25,18 @@ public class GameClientUDP extends Thread {
 
             while (running) {
                 Player player = playPanel.getPlayer();
-                String msg = "UPDATE " + player.getX() + " " + player.getY() + " " + player.getBodyAngle();
+                String msg = "UPDATE " + player.getX() + " " + player.getY() + " " + player.getBodyAngle() + " " + player.getGunAngle();
                 byte[] data = msg.getBytes();
 
                 DatagramPacket packet = new DatagramPacket(data, data.length, address, hostPort);
                 socket.send(packet);
 
+                // Receive state update
                 DatagramPacket response = new DatagramPacket(buffer, buffer.length);
                 socket.receive(response);
                 String reply = new String(response.getData(), 0, response.getLength());
 
-                // For example: STATE x y angle
+                // Format: STATE x y bodyAngle
                 String[] parts = reply.split(" ");
                 if (parts[0].equals("STATE")) {
                     double x = Double.parseDouble(parts[1]);

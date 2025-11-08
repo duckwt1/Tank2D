@@ -25,18 +25,20 @@ public class GameMiniServer extends Thread {
                 socket.receive(packet);
                 String msg = new String(packet.getData(), 0, packet.getLength());
 
-                // Parse message (ex: "UPDATE x y angle")
+                // Parse message: UPDATE x y bodyAngle gunAngle
                 String[] parts = msg.split(" ");
                 if (parts[0].equals("UPDATE")) {
                     double x = Double.parseDouble(parts[1]);
                     double y = Double.parseDouble(parts[2]);
-                    double angle = Double.parseDouble(parts[3]);
+                    double bodyAngle = Double.parseDouble(parts[3]);
+                    double gunAngle = Double.parseDouble(parts[4]);
 
-                    // update state in PlayPanel
-                    playPanel.applyRemoteState(x, y, angle);
+                    // Apply state from client
+                    playPanel.applyRemoteState(x, y, bodyAngle);
+                    playPanel.getPlayer().setGunAngle(gunAngle);
                 }
 
-                // Optionally broadcast new state
+                // Send back confirmation
                 Player p = playPanel.getPlayer();
                 String reply = "STATE " + p.getX() + " " + p.getY() + " " + p.getBodyAngle();
                 byte[] response = reply.getBytes();

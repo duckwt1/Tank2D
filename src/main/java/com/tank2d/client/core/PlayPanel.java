@@ -6,20 +6,18 @@ import com.tank2d.client.entity.Player;
 import com.tank2d.client.map.MapLoader;
 import com.tank2d.shared.Constant;
 import javafx.animation.AnimationTimer;
-import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
-import javafx.scene.shape.Polygon;
 
-import java.util.ArrayList;
 import java.util.List;
+
 public class PlayPanel extends Pane implements Runnable {
     private final Canvas canvas;
     private final GraphicsContext gc;
-
     private final List<Entity> entities;
     private final Player player;
     private AnimationTimer gameLoop;
@@ -43,20 +41,54 @@ public class PlayPanel extends Pane implements Runnable {
     }
 
     private void setupControls() {
+        setOnKeyPressed(this::onKeyPressed);
+        setOnKeyReleased(this::onKeyReleased);
+        setOnMouseMoved(this::onMouseMoved);
+    }
+
+    private void onKeyPressed(KeyEvent e) {
+        KeyCode code = e.getCode();
+        switch (code) {
+            case W -> player.setUp(true);
+            case S -> player.setDown(true);
+            case A -> player.setLeft(true);
+            case D -> player.setRight(true);
+            case SPACE -> player.setBackward(true);
+        }
+    }
+
+    private void onKeyReleased(KeyEvent e) {
+        KeyCode code = e.getCode();
+        switch (code) {
+            case W -> player.setUp(false);
+            case S -> player.setDown(false);
+            case A -> player.setLeft(false);
+            case D -> player.setRight(false);
+            case SPACE -> player.setBackward(false);
+        }
+    }
+
+    private void onMouseMoved(MouseEvent e) {
+        player.onMouseMoved(e);
     }
 
     public void setHost(boolean value) {
         this.isHost = value;
     }
 
-    public Player getPlayer() { return player; }
-    public List<Entity> getEntities() { return entities; }
+    public Player getPlayer() {
+        return player;
+    }
 
-    // Example hook to receive update from network
+    public List<Entity> getEntities() {
+        return entities;
+    }
+
+    // Called when remote data received from mini server
     public void applyRemoteState(double x, double y, double angle) {
         player.setX(x);
         player.setY(y);
-        // you can later add smooth interpolation here
+        // we could smooth interpolate here later
     }
 
     @Override
