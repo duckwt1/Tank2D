@@ -19,6 +19,19 @@ public enum PacketType {
     REGISTER_OK,
     REGISTER_FAIL,
 
+    // === ROOM ===
+    CREATE_ROOM,
+    ROOM_CREATED,
+    ROOM_LIST,
+    ROOM_LIST_DATA,
+    JOIN_ROOM,
+    ROOM_JOINED,
+    LEAVE_ROOM,
+    ROOM_UPDATE,
+    PLAYER_READY,
+    START_GAME,
+
+
     // === SHOP / INVENTORY ===
     BUY,
     BUY_OK,
