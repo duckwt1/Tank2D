@@ -138,7 +138,8 @@ public class Player extends Entity {
     }
 
     // ---- Phím điều khiển ----
-    public void setUp(boolean value) { up = value; }
+    public void setUp(boolean value) { up = value;
+        System.out.println("hello");}
     public void setDown(boolean value) { down = value; }
     public void setLeft(boolean value) { left = value; }
     public void setRight(boolean value) { right = value; }

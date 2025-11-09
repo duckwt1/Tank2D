@@ -1,44 +1,23 @@
 package com.tank2d.shared;
 
-// Gui goi tin theo dinh dang : packettype:data
+public class PacketType {
+    public static final int LOGIN = 1;
+    public static final int LOGIN_OK = 2;
+    public static final int LOGIN_FAIL = 3;
 
-/**
- * Định nghĩa tất cả các loại gói tin (packet)
- * được gửi qua lại giữa CLIENT ↔ SERVER.
- *
- * Giai đoạn này tập trung vào LOGIN / REGISTER.
- * Sau này có thể mở rộng thêm: ROOM, CHAT, GAMEPLAY...
- */
-public enum PacketType {
-    // === AUTHENTICATION ===
-    LOGIN,
-    LOGIN_OK,
-    LOGIN_FAIL,
+    public static final int REGISTER = 4;
+    public static final int REGISTER_OK = 5;
+    public static final int REGISTER_FAIL = 6;
 
-    REGISTER,
-    REGISTER_OK,
-    REGISTER_FAIL,
-
-    // === ROOM ===
-    CREATE_ROOM,
-    ROOM_CREATED,
-    ROOM_LIST,
-    ROOM_LIST_DATA,
-    JOIN_ROOM,
-    ROOM_JOINED,
-    ROOM_JOIN_FAIL,
-    LEAVE_ROOM,
-    ROOM_UPDATE,
-    PLAYER_READY,
-    START_GAME,
-
-
-    // === SHOP / INVENTORY ===
-    BUY,
-    BUY_OK,
-    BUY_FAIL,
-
-
-    CREATE_ROOM_HOST,
-    CREATE_ROOM_CLIENT
+    public static final int CREATE_ROOM = 7;
+    public static final int ROOM_CREATED = 8;
+    public static final int ROOM_LIST = 9;
+    public static final int ROOM_LIST_DATA = 10;
+    public static final int JOIN_ROOM = 11;
+    public static final int ROOM_JOINED = 12;
+    public static final int ROOM_JOIN_FAIL = 13;
+    public static final int LEAVE_ROOM = 14;
+    public static final int ROOM_UPDATE = 15;
+    public static final int PLAYER_READY = 16;
+    public static final int START_GAME = 17;
 }

@@ -1,11 +1,16 @@
 package com.tank2d.client.ui;
 
-import com.tank2d.client.core.GameClient;
-import com.tank2d.client.core.PacketListener;
+import com.tank2d.client.core.*;
+import com.tank2d.client.entity.Player;
+import com.tank2d.shared.Packet;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.shape.Polygon;
+import javafx.stage.Stage;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class WaitingRoomController implements PacketListener {
@@ -67,7 +72,7 @@ public class WaitingRoomController implements PacketListener {
     private void onLeaveRoom() {
         if (client == null) return;
         client.leaveRoom();
-        
+
         // Navigate back to main menu with client
         Platform.runLater(() -> {
             MainMenuController controller = UiNavigator.loadSceneWithController("main_menu.fxml");
@@ -91,6 +96,7 @@ public class WaitingRoomController implements PacketListener {
             updatePlayerCount(players.size(), maxPlayers);
         });
     }
+
     public void addPlayer(String name) {
         Platform.runLater(() -> {
             if (!listPlayers.getItems().contains(name)) {
@@ -114,7 +120,21 @@ public class WaitingRoomController implements PacketListener {
     public void updateStatus(String msg) {
         Platform.runLater(() -> lblStatus.setText(msg));
     }
-    
+
+    // ✅ Helper: safely parse int or double to int
+    private int getInt(Object obj, int defaultValue) {
+        if (obj == null) return defaultValue;
+        if (obj instanceof Integer) return (int) obj;
+        if (obj instanceof Double) return ((Double) obj).intValue();
+        if (obj instanceof String) {
+            try {
+                return (int) Double.parseDouble((String) obj);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
 
     @Override
     public void onRoomJoined(int roomId, String roomName, int maxPlayers, List<String> players) {
@@ -124,7 +144,7 @@ public class WaitingRoomController implements PacketListener {
             updatePlayerList(players);
         });
     }
-    
+
     @Override
     public void onRoomUpdate(String message, List<String> players) {
         Platform.runLater(() -> {
@@ -134,16 +154,38 @@ public class WaitingRoomController implements PacketListener {
             }
         });
     }
-    
+
     @Override
-    public void onGameStart(String message) {
+    public void onGameStart(Packet p) {
         Platform.runLater(() -> {
-            lblStatus.setText(message);
-            // TODO: Navigate to game screen
-            // UiNavigator.loadScene("game_scene.fxml");
+            lblStatus.setText((String) p.data.get("msg"));
+
+            boolean isHost = (boolean) p.data.getOrDefault("isHost", false);
+
+            Player me = new Player(0, 0, new Polygon(), 3, "Pham Ngoc Duc");
+            PlayPanel playPanel = new PlayPanel(2, me, new ArrayList<>());
+
+            Stage stage = (Stage) lblStatus.getScene().getWindow();
+            Scene scene = new Scene(playPanel);
+            stage.setScene(scene);
+            stage.show();
+
+            // ✅ Safely parse double→int from Packet data
+            int udpPort = getInt(p.data.getOrDefault("host_udp_port", 4001), 4001);
+            String hostIp = p.data.getOrDefault("host_ip", "127.0.0.1").toString();
+
+            if (isHost) {
+                GameMiniServer miniServer = new GameMiniServer(playPanel, udpPort);
+                miniServer.start();
+            } else {
+                GameClientUDP udpClient = new GameClientUDP(playPanel, hostIp, udpPort);
+                udpClient.start();
+            }
+
+            new Thread(playPanel).start();
         });
     }
-    
+
     @Override
     public void onDisconnected() {
         Platform.runLater(() -> {

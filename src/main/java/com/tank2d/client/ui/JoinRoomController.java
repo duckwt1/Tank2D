@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.tank2d.client.utils.DataTypeParser.toInt;
+
 public class JoinRoomController implements PacketListener {
     @FXML private TextField txtSearch;
     @FXML private PasswordField txtPassword;
@@ -27,8 +29,8 @@ public class JoinRoomController implements PacketListener {
     @FXML private TableColumn<Map<String, Object>, String> colLocked;
     @FXML private HBox passwordBox;
 
-    private ObservableList<Map<String, Object>> roomList = FXCollections.observableArrayList();
-    private ObservableList<Map<String, Object>> filteredRoomList = FXCollections.observableArrayList();
+    private final ObservableList<Map<String, Object>> roomList = FXCollections.observableArrayList();
+    private final ObservableList<Map<String, Object>> filteredRoomList = FXCollections.observableArrayList();
     private GameClient client;
     private Map<String, Object> selectedRoom;
 
@@ -40,25 +42,33 @@ public class JoinRoomController implements PacketListener {
 
     @FXML
     public void initialize() {
-        colRoomName.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().get("name"))));
-        colPlayers.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().get("players"))));
-        colMaxPlayers.setCellValueFactory(data -> new SimpleStringProperty(String.valueOf(data.getValue().get("maxPlayers"))));
+        colRoomName.setCellValueFactory(data ->
+                new SimpleStringProperty(String.valueOf(data.getValue().get("name")))
+        );
+        colPlayers.setCellValueFactory(data ->
+                new SimpleStringProperty(String.valueOf(toInt(data.getValue().get("players"))))
+        );
+        colMaxPlayers.setCellValueFactory(data ->
+                new SimpleStringProperty(String.valueOf(toInt(data.getValue().get("maxPlayers"))))
+        );
         colStatus.setCellValueFactory(data -> {
-            int current = (int) data.getValue().get("players");
-            int max = (int) data.getValue().get("maxPlayers");
+            int current = toInt(data.getValue().get("players"));
+            int max = toInt(data.getValue().get("maxPlayers"));
             String status = current >= max ? "FULL" : "OPEN";
             return new SimpleStringProperty(status);
         });
-        colLocked.setCellValueFactory(data -> new SimpleStringProperty(
-                (boolean) data.getValue().getOrDefault("hasPassword", false) ? "🔒" : ""
-        ));
+        colLocked.setCellValueFactory(data ->
+                new SimpleStringProperty(
+                        Boolean.TRUE.equals(data.getValue().get("hasPassword")) ? "🔒" : ""
+                )
+        );
 
         tableRooms.setItems(filteredRoomList);
         tableRooms.setOnMouseClicked(this::onRoomSelect);
-        
+
         // Hide password box initially
         passwordBox.setVisible(false);
-        
+
         // Add search listener
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> filterRooms(newValue));
     }
@@ -67,13 +77,13 @@ public class JoinRoomController implements PacketListener {
         selectedRoom = tableRooms.getSelectionModel().getSelectedItem();
         if (selectedRoom == null) return;
 
-        boolean hasPassword = (boolean) selectedRoom.getOrDefault("hasPassword", false);
+        boolean hasPassword = Boolean.TRUE.equals(selectedRoom.get("hasPassword"));
         passwordBox.setVisible(hasPassword);
-        
-        int current = (int) selectedRoom.get("players");
-        int max = (int) selectedRoom.get("maxPlayers");
+
+        int current = toInt(selectedRoom.get("players"));
+        int max = toInt(selectedRoom.get("maxPlayers"));
         boolean isFull = current >= max;
-        
+
         if (isFull) {
             lblStatus.setText("⚠️ This room is full!");
         } else {
@@ -87,24 +97,24 @@ public class JoinRoomController implements PacketListener {
     }
 
     @FXML
-    private void onJoin(){
-        if (selectedRoom == null){
+    private void onJoin() {
+        if (selectedRoom == null) {
             lblStatus.setText("⚠️ Please select a room first!");
             showAlert("Please select a room!");
             return;
         }
 
-        int current = (int) selectedRoom.get("players");
-        int max = (int) selectedRoom.get("maxPlayers");
+        int current = toInt(selectedRoom.get("players"));
+        int max = toInt(selectedRoom.get("maxPlayers"));
         if (current >= max) {
             lblStatus.setText("⚠️ This room is full!");
             showAlert("This room is full!");
             return;
         }
 
+        int roomId = toInt(selectedRoom.get("id"));
+        boolean hasPassword = Boolean.TRUE.equals(selectedRoom.get("hasPassword"));
         String password = txtPassword.getText().trim();
-        int roomId = (int) selectedRoom.get("id");
-        boolean hasPassword = (boolean) selectedRoom.getOrDefault("hasPassword", false);
 
         if (hasPassword && password.isEmpty()) {
             lblStatus.setText("🔒 Room requires password!");
@@ -124,7 +134,7 @@ public class JoinRoomController implements PacketListener {
         });
     }
 
-    private void requestRoomList(){
+    private void requestRoomList() {
         if (client == null) {
             lblStatus.setText("Client not connected!");
             return;
@@ -153,10 +163,10 @@ public class JoinRoomController implements PacketListener {
             lblStatus.setText("✅ Found " + rooms.size() + " room(s)");
         });
     }
-    
+
     private void filterRooms(String searchText) {
         filteredRoomList.clear();
-        
+
         if (searchText == null || searchText.trim().isEmpty()) {
             filteredRoomList.addAll(roomList);
         } else {
@@ -168,12 +178,12 @@ public class JoinRoomController implements PacketListener {
                 }
             }
         }
-        
+
         if (filteredRoomList.isEmpty() && !roomList.isEmpty()) {
             lblStatus.setText("❌ No rooms match your search");
         }
     }
-    
+
     @Override
     public void onRoomJoined(int roomId, String roomName, int maxPlayers, List<String> players) {
         Platform.runLater(() -> {
@@ -184,7 +194,7 @@ public class JoinRoomController implements PacketListener {
             controller.updatePlayerList(players);
         });
     }
-    
+
     @Override
     public void onLoginFail(String message) {
         // Server uses LOGIN_FAIL for join room errors too
@@ -193,7 +203,7 @@ public class JoinRoomController implements PacketListener {
             showAlert(message);
         });
     }
-    
+
     @Override
     public void onDisconnected() {
         Platform.runLater(() -> {
@@ -201,12 +211,14 @@ public class JoinRoomController implements PacketListener {
             UiNavigator.loadScene("login.fxml");
         });
     }
-    
+
     private void showAlert(String msg) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setHeaderText(null);
         alert.setContentText(msg);
         alert.showAndWait();
     }
+
+    // 🔒 Safe numeric conversion for all JSON numeric fields
 
 }

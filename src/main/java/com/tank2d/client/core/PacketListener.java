@@ -1,5 +1,7 @@
 package com.tank2d.client.core;
 
+import com.tank2d.shared.Packet;
+
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +24,7 @@ public interface PacketListener {
     default void onRoomListReceived(List<Map<String, Object>> rooms) {}
     
     // Game events
-    default void onGameStart(String message) {}
+    default void onGameStart(Packet p) {}
     
     // Connection events
     default void onDisconnected() {}

@@ -41,10 +41,59 @@ public class PlayPanel extends Pane implements Runnable {
     }
 
     private void setupControls() {
-        setOnKeyPressed(this::onKeyPressed);
-        setOnKeyReleased(this::onKeyReleased);
+        // mouse and key handlers (delegate to your methods)
         setOnMouseMoved(this::onMouseMoved);
+
+        // Try to handle keys on the Panel itself
+        setOnKeyPressed(e -> {
+            System.out.println("KeyPressed on PlayPanel: " + e.getCode());
+            onKeyPressed(e);
+        });
+        setOnKeyReleased(e -> {
+            System.out.println("KeyReleased on PlayPanel: " + e.getCode());
+            onKeyReleased(e);
+        });
+
+        // Make sure PlayPanel is focusable and request focus at right time
+        setFocusTraversable(true);
+        setOnMouseClicked(e -> {
+            requestFocus(); // clicking will give focus
+            System.out.println("PlayPanel clicked -> requestFocus()");
+        });
+
+        // When scene/window shows, request focus automatically
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((o2, oldWindow, newWindow) -> {
+                    if (newWindow != null) {
+                        newWindow.showingProperty().addListener((o3, wasShowing, isShowing) -> {
+                            if (isShowing) {
+                                javafx.application.Platform.runLater(() -> {
+                                    requestFocus();
+                                    System.out.println("Requested focus on PlayPanel after show()");
+                                });
+                            }
+
+                        });
+                    }
+                });
+
+                // also attach scene-level handlers as fallback
+                newScene.setOnKeyPressed(e -> {
+                    // scene-level receives even if pane isn't focused
+                    System.out.println("Scene key pressed: " + e.getCode());
+                    onKeyPressed(e);
+                });
+                newScene.setOnKeyReleased(e -> {
+                    onKeyReleased(e);
+                });
+            }
+        });
+
+        // debug focus changes
+        focusedProperty().addListener((obs, oldV, newV) -> System.out.println("PlayPanel focus = " + newV));
     }
+
 
     private void onKeyPressed(KeyEvent e) {
         KeyCode code = e.getCode();

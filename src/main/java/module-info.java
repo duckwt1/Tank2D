@@ -7,7 +7,7 @@ module com.tank2d.tank2d {
     requires org.controlsfx.controls;
     requires javafx.graphics;
     requires org.json;
-    requires com.tank2d.tank2d;
+    requires com.google.gson;
 
     opens com.tank2d.client.ui to javafx.fxml;
     opens com.tank2d.masterserver.ui to javafx.fxml;

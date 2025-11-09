@@ -22,7 +22,7 @@ public class LoginController implements PacketListener {
             client.connect("localhost", 5000);
             lblStatus.setText("Connected to server");
         } catch (Exception e) {
-            lblStatus.setText("Cannot connect to server");
+            lblStatus.setText("Cannot connect to server" + e.getLocalizedMessage());
         }
     }
 

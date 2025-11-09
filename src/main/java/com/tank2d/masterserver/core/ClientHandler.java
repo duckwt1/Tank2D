@@ -5,28 +5,21 @@ import com.tank2d.masterserver.core.room.RoomManager;
 import com.tank2d.shared.Packet;
 import com.tank2d.shared.PacketType;
 import com.tank2d.masterserver.ui.MasterServerDashboard.ServerEvent;
+import org.json.JSONObject;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
-    private ObjectInputStream in;
-    private ObjectOutputStream out;
+    private BufferedReader in;
+    private PrintWriter out;
     private String username;
     private Consumer<ServerEvent> eventCallback;
     private String clientIP;
     private Room currentRoom;
-
-    public ClientHandler(Socket socket) {
-        this.socket = socket;
-        this.clientIP = socket.getInetAddress().getHostAddress();
-    }
 
     public ClientHandler(Socket socket, Consumer<ServerEvent> eventCallback) {
         this.socket = socket;
@@ -37,20 +30,24 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            out = new ObjectOutputStream(socket.getOutputStream());
-            in = new ObjectInputStream(socket.getInputStream());
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
+
             System.out.println("Client connected: " + socket.getInetAddress());
 
-            while (true) {
-                Packet p = (Packet) in.readObject();
-                handlePacket(p);
+            String line;
+            while ((line = in.readLine()) != null) {
+                try {
+                    Packet p = Packet.fromJson(line);
+                    handlePacket(p);
+                } catch (Exception ex) {
+                    System.out.println("Invalid packet: " + line);
+                }
             }
-
         } catch (Exception e) {
             System.out.println("Client disconnected: " + (username != null ? username : clientIP));
             notifyEvent(new ServerEvent(ServerEvent.Type.CLIENT_DISCONNECTED, clientIP, username != null ? username : "Unknown"));
-            
-            // Remove from current room if in one
+
             if (currentRoom != null) {
                 currentRoom.removePlayer(this);
                 broadcastToRoom(currentRoom, PacketType.ROOM_UPDATE, "Player " + username + " left the room");
@@ -73,20 +70,16 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public String getUsername() {
-        return username;
-    }
-
     private void handlePacket(Packet p) {
         switch (p.type) {
-            case LOGIN -> handleLogin(p);
-            case REGISTER -> handleRegister(p);
-            case CREATE_ROOM -> handleCreateRoom(p);
-            case JOIN_ROOM -> handleJoinRoom(p);
-            case LEAVE_ROOM -> handleLeaveRoom(p);
-            case PLAYER_READY -> handlePlayerReady(p);
-            case START_GAME -> handleStartGame(p);
-            case ROOM_LIST -> handleRoomList(p);
+            case PacketType.LOGIN -> handleLogin(p);
+            case PacketType.REGISTER -> handleRegister(p);
+            case PacketType.CREATE_ROOM -> handleCreateRoom(p);
+            case PacketType.JOIN_ROOM -> handleJoinRoom(p);
+            case PacketType.LEAVE_ROOM -> handleLeaveRoom(p);
+            case PacketType.PLAYER_READY -> handlePlayerReady(p);
+            case PacketType.START_GAME -> handleStartGame(p);
+            case PacketType.ROOM_LIST -> handleRoomList(p);
         }
     }
 
@@ -98,7 +91,7 @@ public class ClientHandler implements Runnable {
         Packet resp = new Packet(success ? PacketType.LOGIN_OK : PacketType.LOGIN_FAIL);
         resp.data.put("msg", success ? "Welcome " + username + "!" : "Invalid credentials!");
         send(resp);
-        
+
         notifyEvent(new ServerEvent(ServerEvent.Type.CLIENT_LOGIN, clientIP, username + (success ? " (SUCCESS)" : " (FAILED)")));
     }
 
@@ -110,34 +103,33 @@ public class ClientHandler implements Runnable {
         Packet resp = new Packet(ok ? PacketType.REGISTER_OK : PacketType.REGISTER_FAIL);
         resp.data.put("msg", ok ? "Registered successfully!" : "Username already exists!");
         send(resp);
-        
+
         notifyEvent(new ServerEvent(ServerEvent.Type.CLIENT_REGISTER, clientIP, user + (ok ? " (SUCCESS)" : " (FAILED)")));
     }
 
     private void handleRoomList(Packet p) {
         Packet resp = new Packet(PacketType.ROOM_LIST_DATA);
-
         List<Map<String, Object>> list = new ArrayList<>();
         for (Room r : RoomManager.getRooms()) {
             Map<String, Object> roomInfo = new HashMap<>();
-            roomInfo.put("id", r.getId());
+            roomInfo.put("id", Integer.valueOf(r.getId())); // ✅ ensure integer
             roomInfo.put("name", r.getName());
-            roomInfo.put("players", r.getPlayers().size());
-            roomInfo.put("maxPlayers", r.getMaxPlayers());
-            roomInfo.put("hasPassword", r.hasPassword());
+            roomInfo.put("players", Integer.valueOf(r.getPlayers().size())); // ✅ ensure integer
+            roomInfo.put("maxPlayers", Integer.valueOf(r.getMaxPlayers()));  // ✅ ensure integer
+            roomInfo.put("hasPassword", Boolean.valueOf(r.hasPassword()));   // ✅ ensure boolean, not string
             list.add(roomInfo);
         }
 
         resp.data.put("rooms", list);
+        System.out.println("send back room list" + list.toString());
         send(resp);
     }
-
 
     private void handleCreateRoom(Packet p) {
         String roomName = (String) p.data.get("roomName");
         int maxPlayers = (int) p.data.get("maxPlayers");
         String password = (String) p.data.get("password");
-        
+
         Room room = RoomManager.createRoom(roomName, this, maxPlayers, password);
         currentRoom = room;
 
@@ -147,78 +139,51 @@ public class ClientHandler implements Runnable {
         resp.data.put("maxPlayers", room.getMaxPlayers());
         resp.data.put("players", room.getPlayerNames());
 
-        System.out.println("Room created: " + room.getName() + " (#" + room.getId() + ") by " + username);
+        System.out.println("Room created: " + room.getName() + " by " + username);
         send(resp);
     }
 
     private void handleJoinRoom(Packet p) {
         int roomId = (int) p.data.get("roomId");
         String password = (String) p.data.get("password");
-        
+
         Room room = RoomManager.getRoomById(roomId);
-        
         if (room == null) {
-            Packet resp = new Packet(PacketType.LOGIN_FAIL);
-            resp.data.put("msg", "Room not found!");
-            send(resp);
+            sendError("Room not found!");
             return;
         }
-        
         if (room.isFull()) {
-            Packet resp = new Packet(PacketType.LOGIN_FAIL);
-            resp.data.put("msg", "Room is full!");
-            send(resp);
+            sendError("Room is full!");
             return;
         }
-        
         if (!room.checkPassword(password)) {
-            Packet resp = new Packet(PacketType.LOGIN_FAIL);
-            resp.data.put("msg", "Wrong password!");
-            send(resp);
+            sendError("Wrong password!");
             return;
         }
-        
+
         room.addPlayer(this);
         currentRoom = room;
-        
+
         Packet resp = new Packet(PacketType.ROOM_JOINED);
         resp.data.put("roomId", room.getId());
         resp.data.put("roomName", room.getName());
-        resp.data.put("maxPlayers", room.getMaxPlayers());
         resp.data.put("players", room.getPlayerNames());
         send(resp);
-        
-        // Notify other players
+
         broadcastToRoom(room, PacketType.ROOM_UPDATE, username + " joined the room");
-        
-        System.out.println(username + " joined room: " + room.getName());
     }
 
     private void handleLeaveRoom(Packet p) {
-        if (currentRoom == null) {
-            return;
-        }
-        
+        if (currentRoom == null) return;
         Room room = currentRoom;
         room.removePlayer(this);
-        
-        // Notify others
         broadcastToRoom(room, PacketType.ROOM_UPDATE, username + " left the room");
-        
         currentRoom = null;
-        
-        // Remove room if empty
-        if (room.getPlayers().isEmpty()) {
-            RoomManager.removeRoom(room.getId());
-            System.out.println("Room " + room.getName() + " removed (empty)");
-        }
-        
-        System.out.println(username + " left room: " + room.getName());
+        if (room.getPlayers().isEmpty()) RoomManager.removeRoom(room.getId());
     }
 
     private void handlePlayerReady(Packet p) {
         if (currentRoom == null) return;
-        
         boolean ready = (boolean) p.data.get("ready");
         broadcastToRoom(currentRoom, PacketType.ROOM_UPDATE, username + (ready ? " is ready!" : " is not ready"));
     }
@@ -226,42 +191,45 @@ public class ClientHandler implements Runnable {
     private void handleStartGame(Packet p) {
         if (currentRoom == null) return;
         if (!currentRoom.getHost().equals(this)) {
-            Packet resp = new Packet(PacketType.LOGIN_FAIL);
-            resp.data.put("msg", "Only host can start the game!");
-            send(resp);
+            sendError("Only host can start!");
             return;
         }
-        
-        // Broadcast game start to all players in room
-        broadcastToRoom(currentRoom, PacketType.START_GAME, "Game is starting!");
-        System.out.println("Game started in room: " + currentRoom.getName());
-    }
 
-    private void broadcastToRoom(Room room, PacketType type, String message) {
-        Packet p = new Packet(type);
-        p.data.put("msg", message);
-        p.data.put("eventType", "room_event");
-        p.data.put("players", room.getPlayerNames());
-        p.data.put("playerCount", room.getPlayerCount());
-        
-        for (ClientHandler client : room.getPlayers()) {
-            client.send(p);
+        int udpPort = 5000;
+        String hostIp = socket.getInetAddress().getHostAddress();
+
+        for (ClientHandler client : currentRoom.getPlayers()) {
+            Packet start = new Packet(PacketType.START_GAME);
+            start.data.put("msg", "Game is starting!");
+            start.data.put("host_ip", hostIp);
+            start.data.put("host_udp_port", udpPort);
+            start.data.put("isHost", client == currentRoom.getHost());
+            client.send(start);
         }
     }
 
+    private void broadcastToRoom(Room room, int type, String msg) {
+        Packet p = new Packet(type);
+        p.data.put("msg", msg);
+        p.data.put("players", room.getPlayerNames());
+        for (ClientHandler c : room.getPlayers()) c.send(p);
+    }
 
     private void send(Packet p) {
-        try {
-            out.writeObject(p);
-            out.flush();
-        } catch (IOException e) {
-            System.out.println("Send error: " + e.getMessage());
-        }
+        out.println(p.toJson());
+    }
+
+    private void sendError(String msg) {
+        Packet err = new Packet(PacketType.LOGIN_FAIL);
+        err.data.put("msg", msg);
+        send(err);
     }
 
     private void notifyEvent(ServerEvent event) {
-        if (eventCallback != null) {
-            eventCallback.accept(event);
-        }
+        if (eventCallback != null) eventCallback.accept(event);
+    }
+
+    public String getUsername() {
+        return this.username;
     }
 }

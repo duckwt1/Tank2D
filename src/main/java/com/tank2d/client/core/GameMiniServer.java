@@ -24,6 +24,7 @@ public class GameMiniServer extends Thread {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
                 String msg = new String(packet.getData(), 0, packet.getLength());
+                //System.out.println(msg);
 
                 // Parse message: UPDATE x y bodyAngle gunAngle
                 String[] parts = msg.split(" ");
