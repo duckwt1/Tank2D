@@ -2,9 +2,11 @@
 package com.tank2d.client.core;
 
 import com.tank2d.client.entity.Entity;
+import com.tank2d.client.entity.OtherPlayer;
 import com.tank2d.client.entity.Player;
 import com.tank2d.client.map.MapLoader;
 import com.tank2d.shared.Constant;
+import com.tank2d.shared.PlayerState;
 import javafx.animation.AnimationTimer;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -13,32 +15,91 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 
+import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import static com.tank2d.client.utils.DataTypeParser.toInt;
 
 public class PlayPanel extends Pane implements Runnable {
+    private String userName;
     private final Canvas canvas;
     private final GraphicsContext gc;
     private final List<Entity> entities;
-    private final Player player;
+    List<OtherPlayer> players = new ArrayList<>();
+    private Player player;
     private AnimationTimer gameLoop;
     private MapLoader mapLoader;
 
     private boolean isHost = false;
 
-    public PlayPanel(int mapId, Player player, List<Entity> entities) {
+
+    public PlayPanel(String userName, int playerCount, List<Map<String, Object>> playerDataList) {
+        // 🗺️ Lấy mapId từ dữ liệu
+
+        this.userName = userName;
+        int mapId = 1;
+        if (!playerDataList.isEmpty() && playerDataList.get(0).containsKey("mapId")) {
+            mapId = toInt(playerDataList.get(0).get("mapId"));
+        }
+
+        this.mapLoader = new MapLoader(mapId);
         this.canvas = new Canvas(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT);
         this.gc = canvas.getGraphicsContext2D();
         getChildren().add(canvas);
 
-        this.entities = entities;
-        this.player = player;
-        this.entities.add(player);
-        this.mapLoader = new MapLoader(mapId);
+        this.entities = new ArrayList<>();
+        this.players = new ArrayList<>();
+
+
+
+
+        // Nếu chưa có player nào, tạo 1 mặc định
+        if (this.player == null) {
+            this.player = new Player(0, 0, new Polygon(), 3, mapLoader, userName);
+//            players.add(player);
+//            entities.add(player);
+            System.out.println("[PlayPanel] No player data provided, created default.");
+        }
 
         setupControls();
         setFocusTraversable(true);
         requestFocus();
     }
+
+    public void updateOtherPlayer(PlayerState playerState) {
+        OtherPlayer found = null;
+        for (OtherPlayer op : players) {
+            if (op.getName().equals(playerState.userName) || op.getName().equals(this.userName)) {
+                found = op;
+                break;
+            }
+        }
+
+        if (found == null) {
+            // create new if not exist
+            Polygon solid = new Polygon();
+            OtherPlayer newOp = new OtherPlayer(playerState.x, playerState.y, solid, 2.5, mapLoader, playerState.userName, this.player);
+            players.add(newOp);
+            //entities.add(newOp);
+            System.out.println("[PlayPanel] Added new player: " + playerState.userName);
+        } else {
+            //System.out.println("update data of " + found.getName());
+            found.setX(playerState.x);
+            found.setY(playerState.y);
+            found.setBodyAngle(playerState.bodyAngle);
+            found.setGunAngle(playerState.gunAngle);
+            found.setUp(playerState.up);
+            found.setDown(playerState.down);
+            found.setRight(playerState.right);
+            found.setLeft(playerState.left);
+            found.setBackward(playerState.backward);
+        }
+    }
+
+
+
 
     private void setupControls() {
         // mouse and key handlers (delegate to your methods)
@@ -153,12 +214,18 @@ public class PlayPanel extends Pane implements Runnable {
     }
 
     private void update() {
-        for (Entity e : entities) e.update();
+        player.update();
+        for (OtherPlayer oP : players)
+        {
+            oP.update();
+        }
+        //for (Entity e : entities) e.update();
     }
 
     private void draw() {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         mapLoader.draw(gc, this.player);
-        for (Entity e : entities) e.draw(gc);
+        player.draw(gc);
+        for (OtherPlayer oP : players) oP.draw(gc);
     }
 }

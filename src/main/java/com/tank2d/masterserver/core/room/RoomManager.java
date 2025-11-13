@@ -73,8 +73,8 @@ public class RoomManager {
             Map<String, Object> info = new HashMap<>();
             info.put("id", r.getId());
             info.put("name", r.getName());
-            info.put("host", (r.getHost() != null && r.getHost().getUsername() != null)
-                    ? r.getHost().getUsername()
+            info.put("host", (r.getHost() != null && r.getHost() != null)
+                    ? r.getHost()
                     : "Unknown");
             info.put("players", r.getPlayers().size());
             info.put("maxPlayers", r.getMaxPlayers());

@@ -9,7 +9,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 
-import java.awt.Polygon;
+import java.awt.*;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.w3c.dom.Document;
@@ -18,6 +19,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.awt.geom.Area;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
@@ -245,4 +247,64 @@ public class MapLoader {
         gc.setFill(Color.WHITE);
         gc.fillText("Player: (" + player.x + ", " + player.y + ")", 10, 20);
     }
+    // In MapLoader.java
+    public boolean checkCollision(double x, double y, Polygon solidArea) {
+        // Create player bounding box (based on position)
+        Rectangle playerRect = new Rectangle(
+                (int) (x + 8),  // offset (same as solidAreaX)
+                (int) (y + 16), // offset (same as solidAreaY)
+                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16),
+                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16)
+        );
+
+        int minTileX = playerRect.x / Constant.TILESIZE;
+        int maxTileX = (playerRect.x + playerRect.width) / Constant.TILESIZE;
+        int minTileY = playerRect.y / Constant.TILESIZE;
+        int maxTileY = (playerRect.y + playerRect.height) / Constant.TILESIZE;
+
+        for (var layer : layers) {
+            for (int ty = minTileY; ty <= maxTileY; ty++) {
+                for (int tx = minTileX; tx <= maxTileX; tx++) {
+                    // Bounds safety
+                    if (ty < 0 || ty >= layer.data.length || tx < 0 || tx >= layer.data[0].length)
+                        continue;
+
+                    int tileId = layer.data[ty][tx];
+                    if (tileId == 0) continue;
+
+                    var tile = tiles[tileId];
+                    if (tile == null || !tile.collision || tile.solidPolygon == null)
+                        continue;
+
+                    // Build world-space polygon
+                    Polygon poly = new Polygon(tile.solidPolygon.xpoints, tile.solidPolygon.ypoints, tile.solidPolygon.npoints);
+                    poly.translate(tx * Constant.TILESIZE, ty * Constant.TILESIZE);
+
+                    // Check intersection
+                    Area tileArea = new Area(poly);
+                    Area playerArea = new Area(playerRect);
+                    tileArea.intersect(playerArea);
+
+                    if (!tileArea.isEmpty()) {
+                        return true; // Collision!
+                    }
+                }
+            }
+        }
+
+        return false; // No collision
+    }
+
+
+    private javafx.scene.shape.Polygon toFxPolygon(Polygon awtPoly) {
+        javafx.scene.shape.Polygon fx = new javafx.scene.shape.Polygon();
+        for (int i = 0; i < awtPoly.npoints; i++) {
+            fx.getPoints().addAll(
+                    (double) awtPoly.xpoints[i],
+                    (double) awtPoly.ypoints[i]
+            );
+        }
+        return fx;
+    }
+
 }

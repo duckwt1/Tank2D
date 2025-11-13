@@ -57,6 +57,7 @@ public class LoginController implements PacketListener {
     public void onLoginSuccess(String message) {
         Platform.runLater(() -> {
             lblStatus.setText(message);
+            client.setUserName(this.txtUsername.getText());
             MainMenuController controller = UiNavigator.loadSceneWithController("main_menu.fxml");
             controller.setClient(client);
             // Transfer listener to MainMenuController

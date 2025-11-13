@@ -1,8 +1,8 @@
-// Pham Ngoc Duc - Lớp 23JIT - Trường VKU - MSSV: 23IT059
 package com.tank2d.client.entity;
 
 import com.tank2d.client.map.MapLoader;
 import com.tank2d.shared.Constant;
+import com.tank2d.shared.PlayerState;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
@@ -10,9 +10,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.transform.Affine;
 
 import java.awt.*;
-import java.util.Map;
 
-public class Player extends Entity {
+public class OtherPlayer extends Entity{
     private final String playerName;
     private Image bodyImage;
     private Image gunImage;
@@ -21,14 +20,17 @@ public class Player extends Entity {
     private double bodyAngle = 0;
     private double targetAngle = 0;
     private double gunAngle = 0;
-    private boolean backward; // trạng thái phím lùi
+    public boolean backward; // trạng thái phím lùi
     private MapLoader mapLoader;
     public int solidAreaX = 8;
     public int solidAreaY = 16;
     public int solidWidth = (int) (Constant.TILESIZE * Constant.CHAR_SCALE - solidAreaX * 2);
     public int solidHeight = (int) (Constant.TILESIZE * Constant.CHAR_SCALE - solidAreaY);
     // Trạng thái phím
-    private boolean up, down, left, right;
+    public boolean up;
+    public boolean down;
+    public boolean left;
+    public boolean right;
 
     // Tốc độ di chuyển và tốc độ xoay
     private final double moveSpeed = 2.5;
@@ -37,11 +39,13 @@ public class Player extends Entity {
     // Pivot của nòng
     private double gunPivotX;
     private double gunPivotY;
+    private Player player;
 
-    public Player(double x, double y, Polygon solidArea, double speed, MapLoader mapLoader, String playerName) {
+    public OtherPlayer(double x, double y, Polygon solidArea, double speed, MapLoader mapLoader, String playerName, Player player) {
         super(x, y, solidArea, speed, mapLoader);
         this.playerName = playerName;
         this.mapLoader = mapLoader;
+        this.player = player;
         getImages();
 
     }
@@ -102,44 +106,60 @@ public class Player extends Entity {
             x = newX;
             y = newY;
         } else {
-             //Nếu có va chạm, bạn có thể thêm hiệu ứng dừng hoặc trượt nhẹ
-             System.out.println("Collision detected!");
+            // Nếu có va chạm, bạn có thể thêm hiệu ứng dừng hoặc trượt nhẹ
+            // System.out.println("Collision detected!");
         }
     }
 
 
     @Override
     public void draw(GraphicsContext gc) {
-        if (bodyImage == null || gunImage == null) return;
+        if (bodyImage == null || gunImage == null || player == null) return;
 
-        double centerX = Constant.SCREEN_WIDTH / 2.0;
-        double centerY = Constant.SCREEN_HEIGHT / 2.0;
+        // --- Define visible range around main player (the "camera view") ---
+
+        double halfW = Constant.SCREEN_WIDTH / 2.0;
+        double halfH = Constant.SCREEN_HEIGHT / 2.0;
+
+        // Player’s camera center
+        double camX = player.getX();
+        double camY = player.getY();
+
+        // Skip drawing if outside camera range (with small buffer)
+        double buffer = 100; // draw slightly beyond screen edge to prevent pop-in
+        if (x < camX - halfW - buffer || x > camX + halfW + buffer ||
+                y < camY - halfH - buffer || y > camY + halfH + buffer) {
+            return; // Not visible → skip draw
+        }
+
+        // --- Compute screen position relative to camera ---
+        double screenX = halfW + (x - camX);
+        double screenY = halfH + (y - camY);
 
         double bodyW = bodyImage.getWidth();
         double bodyH = bodyImage.getHeight();
 
-        // --- Vẽ thân (xoay mượt theo hướng di chuyển) ---
+        // --- Draw tank body ---
         gc.save();
-        gc.translate(centerX, centerY);
+        gc.translate(screenX, screenY);
         gc.rotate(bodyAngle);
         gc.drawImage(bodyImage, -bodyW / 2, -bodyH / 2);
         gc.restore();
 
-        // --- Vẽ nòng ---
+        // --- Draw gun ---
         gc.save();
         Affine transform = new Affine();
-        transform.appendTranslation(centerX, centerY);
+        transform.appendTranslation(screenX, screenY);
         transform.appendRotation(Math.toDegrees(gunAngle));
         gc.setTransform(transform);
         gc.drawImage(gunImage, -gunPivotX, -gunPivotY);
         gc.restore();
 
-        // --- Debug ---
+        // --- Draw player name & debug info ---
         gc.setFill(Color.WHITE);
-        gc.fillText(playerName, centerX - 20, centerY - bodyH / 2 - 5);
-        gc.setFill(Color.RED);
-        gc.fillText(String.format("x: %.1f, y: %.1f  angle: %.1f°", x, y, bodyAngle), 10, 20);
+        gc.fillText(playerName, screenX - 20, screenY - bodyH / 2 - 5);
     }
+
 
     /** Giúp giữ góc trong khoảng [-180, 180] */
     private double normalizeAngle(double angle) {
@@ -160,7 +180,7 @@ public class Player extends Entity {
 
     // ---- Phím điều khiển ----
     public void setUp(boolean value) { up = value;
-        //System.out.println("hello")
+       // System.out.println("hello"
         ;}
     public void setDown(boolean value) { down = value; }
     public void setLeft(boolean value) { left = value; }
@@ -191,39 +211,26 @@ public class Player extends Entity {
         return this.y;
     }
 
-    public boolean isUp() {
-        return up;
+    public double getBodyAngle() {
+        return bodyAngle;
     }
-
-    public boolean isDown() {
-        return down;
+    public void applyRemoteState(PlayerState state) {
+        this.x = state.x;
+        this.y = state.y;
+        this.bodyAngle = state.bodyAngle;
+        this.gunAngle = state.gunAngle;
+        this.up = state.up;
+        this.down = state.down;
+        this.left = state.left;
+        this.right = state.right;
+        this.backward = state.backward;
+        this.backward = state.backward;
     }
-
+    public void setBodyAngle(double bodyAngle) {
+        this.bodyAngle = bodyAngle;
+    }
     public String getName() {
         return playerName;
     }
 
-    public boolean isLeft() {
-        return left;
-    }
-
-    public boolean isRight() {
-        return right;
-    }
-
-    public boolean isBackward() {
-        return backward;
-    }
-
-    public double getBodyAngle() {
-        return bodyAngle;
-    }
-
-    public MapLoader getMapLoader() {
-        return this.mapLoader;
-    }
-
-    public void setBodyAngle(double bodyAngle) {
-        this.bodyAngle = bodyAngle;
-    }
 }

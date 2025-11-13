@@ -21,7 +21,7 @@ public class GameClient {
     private PacketListener listener;
     private GameMiniServer miniServer;
     private GameClientUDP udpClient;
-
+    private String userName;
     private final Gson gson = new Gson();
 
     public GameClient() {}
@@ -162,6 +162,13 @@ public class GameClient {
         return udpClient;
     }
 
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
 
     public GameMiniServer getMiniServer() {
         return miniServer;

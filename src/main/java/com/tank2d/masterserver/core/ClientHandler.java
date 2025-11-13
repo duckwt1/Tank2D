@@ -190,23 +190,47 @@ public class ClientHandler implements Runnable {
 
     private void handleStartGame(Packet p) {
         if (currentRoom == null) return;
-        if (!currentRoom.getHost().equals(this)) {
+
+        if (!currentRoom.getHost().equals(this.getUsername())) {
             sendError("Only host can start!");
             return;
         }
 
-        int udpPort = 5000;
+        System.out.println("Starting game in room: " + currentRoom.getName());
+
+        int udpPort = 5000 + currentRoom.getId(); // unique per room
         String hostIp = socket.getInetAddress().getHostAddress();
 
+        // Lấy thông tin map (ví dụ hardcode hoặc lưu trong room)
+        //int mapId = currentRoom.getMapId(); // nếu chưa có, bạn có thể cho 1 giá trị mặc định như 1
+        int mapId = 2;
+        // Danh sách người chơi
+        List<Map<String, Object>> playersData = new ArrayList<>();
+        for (ClientHandler c : currentRoom.getPlayers()) {
+            Map<String, Object> playerInfo = new HashMap<>();
+            playerInfo.put("name", c.getUsername());
+            playerInfo.put("tankId", 1); // bạn có thể cho mỗi người chọn tankId riêng
+            playerInfo.put("gunId", 1);
+            playersData.add(playerInfo);
+        }
+
+        // Gửi cho từng client
         for (ClientHandler client : currentRoom.getPlayers()) {
             Packet start = new Packet(PacketType.START_GAME);
             start.data.put("msg", "Game is starting!");
             start.data.put("host_ip", hostIp);
             start.data.put("host_udp_port", udpPort);
-            start.data.put("isHost", client == currentRoom.getHost());
+            start.data.put("isHost", currentRoom.getHost());
+            start.data.put("players", playersData);
+            start.data.put("mapId", mapId);
             client.send(start);
         }
+
+        System.out.println("Sent START_GAME to " + currentRoom.getPlayers().size() + " players.");
     }
+
+
+
 
     private void broadcastToRoom(Room room, int type, String msg) {
         Packet p = new Packet(type);

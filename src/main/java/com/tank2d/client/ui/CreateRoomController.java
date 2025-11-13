@@ -34,7 +34,9 @@ public class CreateRoomController implements PacketListener {
         // add value to combobox
         ObservableList<Integer> playerOptions = FXCollections.observableArrayList(
                 2, 4, 6, 8);
+
         cmbMaxPlayers.setItems(playerOptions);
+        cmbMaxPlayers.setValue(6);
     }
 
 

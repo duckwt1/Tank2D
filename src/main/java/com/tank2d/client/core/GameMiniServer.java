@@ -1,13 +1,18 @@
 package com.tank2d.client.core;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
+import java.net.*;
+import java.util.*;
+
+import com.tank2d.client.entity.OtherPlayer;
 import com.tank2d.client.entity.Player;
+import com.tank2d.shared.PlayerState;
 
 public class GameMiniServer extends Thread {
     private final PlayPanel playPanel;
     private final int port;
     private boolean running = true;
+
+    private final Map<String, InetSocketAddress> clients = new HashMap<>();
 
     public GameMiniServer(PlayPanel playPanel, int port) {
         this.playPanel = playPanel;
@@ -17,34 +22,71 @@ public class GameMiniServer extends Thread {
     @Override
     public void run() {
         try (DatagramSocket socket = new DatagramSocket(port)) {
+            socket.setBroadcast(true);
+            byte[] buffer = new byte[2048];
             System.out.println("[MiniServer] Running on UDP port " + port);
-            byte[] buffer = new byte[1024];
 
             while (running) {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 socket.receive(packet);
-                String msg = new String(packet.getData(), 0, packet.getLength());
-                //System.out.println(msg);
+                String msg = new String(packet.getData(), 0, packet.getLength()).trim();
+                InetSocketAddress clientAddr = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
-                // Parse message: UPDATE x y bodyAngle gunAngle
                 String[] parts = msg.split(" ");
-                if (parts[0].equals("UPDATE")) {
-                    double x = Double.parseDouble(parts[1]);
-                    double y = Double.parseDouble(parts[2]);
-                    double bodyAngle = Double.parseDouble(parts[3]);
-                    double gunAngle = Double.parseDouble(parts[4]);
+                if (parts.length == 11 && parts[0].equals("UPDATE")) {
+                    String username = parts[1];
+                    double x = Double.parseDouble(parts[2]);
+                    double y = Double.parseDouble(parts[3]);
+                    double bodyAngle = Double.parseDouble(parts[4]);
+                    double gunAngle = Double.parseDouble(parts[5]);
+                    boolean up = parts[6].equals("1");
+                    boolean down = parts[7].equals("1");
+                    boolean left = parts[8].equals("1");
+                    boolean right = parts[9].equals("1");
+                    boolean backward = parts[10].equals("1");
 
-                    // Apply state from client
-                    playPanel.applyRemoteState(x, y, bodyAngle);
-                    playPanel.getPlayer().setGunAngle(gunAngle);
+                    PlayerState ps = new PlayerState(username, x, y, bodyAngle, gunAngle,
+                            up, down, left, right, backward);
+
+                    playPanel.updateOtherPlayer(ps);
+                    clients.put(username, clientAddr);
+
+                    // ✅ Broadcast to everyone including sender
+                    StringBuilder stateMsg = new StringBuilder("STATE ");
+                    for (OtherPlayer op : playPanel.players) {
+                        stateMsg.append(op.getName()).append(" ")
+                                .append(op.x).append(" ")
+                                .append(op.y).append(" ")
+                                .append(op.getBodyAngle()).append(" ")
+                                .append(op.getGunAngle()).append(" ")
+                                .append(op.up ? 1 : 0).append(" ")
+                                .append(op.down ? 1 : 0).append(" ")
+                                .append(op.left ? 1 : 0).append(" ")
+                                .append(op.right ? 1 : 0).append(" ")
+                                .append(op.backward ? 1 : 0).append("; ");
+                    }
+
+                    Player self = playPanel.getPlayer();
+                    stateMsg.append(self.getName()).append(" ")
+                            .append(self.getX()).append(" ")
+                            .append(self.getY()).append(" ")
+                            .append(self.getBodyAngle()).append(" ")
+                            .append(self.getGunAngle()).append(" ")
+                            .append(self.isUp() ? 1 : 0).append(" ")
+                            .append(self.isDown() ? 1 : 0).append(" ")
+                            .append(self.isLeft() ? 1 : 0).append(" ")
+                            .append(self.isRight() ? 1 : 0).append(" ")
+                            .append(self.isBackward() ? 1 : 0).append("; ");
+
+                    byte[] data = stateMsg.toString().getBytes();
+                    for (InetSocketAddress addr : clients.values()) {
+                        DatagramPacket resp = new DatagramPacket(data, data.length, addr);
+                        socket.send(resp);
+                    }
+
+                } else {
+                    System.out.println("[MiniServer] Invalid message: " + msg);
                 }
-
-                // Send back confirmation
-                Player p = playPanel.getPlayer();
-                String reply = "STATE " + p.getX() + " " + p.getY() + " " + p.getBodyAngle();
-                byte[] response = reply.getBytes();
-                DatagramPacket resp = new DatagramPacket(response, response.length, packet.getAddress(), packet.getPort());
-                socket.send(resp);
             }
         } catch (Exception e) {
             e.printStackTrace();

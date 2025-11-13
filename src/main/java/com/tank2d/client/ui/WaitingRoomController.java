@@ -12,6 +12,7 @@ import javafx.stage.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class WaitingRoomController implements PacketListener {
 
@@ -159,18 +160,18 @@ public class WaitingRoomController implements PacketListener {
     public void onGameStart(Packet p) {
         Platform.runLater(() -> {
             lblStatus.setText((String) p.data.get("msg"));
+            System.out.println(p.data.toString());
+            boolean isHost =  p.data.getOrDefault("isHost", "none").equals(client.getUserName());
+            List<Map<String, Object>> playersData = (List<Map<String, Object>>) p.data.get("players");
 
-            boolean isHost = (boolean) p.data.getOrDefault("isHost", false);
-
-            Player me = new Player(0, 0, new Polygon(), 3, "Pham Ngoc Duc");
-            PlayPanel playPanel = new PlayPanel(2, me, new ArrayList<>());
+            // Create the play panel with player list
+            PlayPanel playPanel = new PlayPanel(client.getUserName(), playersData.size(), playersData);
 
             Stage stage = (Stage) lblStatus.getScene().getWindow();
             Scene scene = new Scene(playPanel);
             stage.setScene(scene);
             stage.show();
 
-            // ✅ Safely parse double→int from Packet data
             int udpPort = getInt(p.data.getOrDefault("host_udp_port", 4001), 4001);
             String hostIp = p.data.getOrDefault("host_ip", "127.0.0.1").toString();
 
@@ -185,6 +186,7 @@ public class WaitingRoomController implements PacketListener {
             new Thread(playPanel).start();
         });
     }
+
 
     @Override
     public void onDisconnected() {

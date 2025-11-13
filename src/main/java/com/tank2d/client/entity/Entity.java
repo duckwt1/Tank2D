@@ -1,8 +1,11 @@
 package com.tank2d.client.entity;
 
+import com.tank2d.client.map.MapLoader;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import javafx.scene.shape.Polygon;
+
+import java.awt.*;
+import java.util.Map;
 
 public abstract class Entity {
     public double x;
@@ -11,12 +14,13 @@ public abstract class Entity {
     public double speed;
     public Image[] images;
     public int spriteNum = 0;
-
-    public Entity(double x, double y, Polygon solidArea, double speed) {
+    public MapLoader mapLoader;
+    public Entity(double x, double y, Polygon solidArea, double speed, MapLoader mapLoader) {
         this.x = x;
         this.y = y;
         this.solidArea = solidArea;
         this.speed = speed;
+        this.mapLoader = mapLoader;
     }
 
     public void getImages() {}
