@@ -23,7 +23,7 @@ public class Room {
 
     public int getId() { return id; }
     public String getName() { return name; }
-    public String getHost() { return host.getUsername(); }
+    public ClientHandler getHost() { return host; }
     public List<ClientHandler> getPlayers() { return players; }
     public int getMaxPlayers() { return maxPlayers; }
     public int getPlayerCount() { return players.size(); }

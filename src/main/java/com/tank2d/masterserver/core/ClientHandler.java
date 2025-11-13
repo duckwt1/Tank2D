@@ -191,7 +191,7 @@ public class ClientHandler implements Runnable {
     private void handleStartGame(Packet p) {
         if (currentRoom == null) return;
 
-        if (!currentRoom.getHost().equals(this.getUsername())) {
+        if (!currentRoom.getHost().equals(this)) {
             sendError("Only host can start!");
             return;
         }
@@ -220,7 +220,7 @@ public class ClientHandler implements Runnable {
             start.data.put("msg", "Game is starting!");
             start.data.put("host_ip", hostIp);
             start.data.put("host_udp_port", udpPort);
-            start.data.put("isHost", currentRoom.getHost());
+            start.data.put("isHost", currentRoom.getHost().getUsername());
             start.data.put("players", playersData);
             start.data.put("mapId", mapId);
             client.send(start);
