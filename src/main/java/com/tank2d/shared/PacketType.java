@@ -20,4 +20,11 @@ public class PacketType {
     public static final int ROOM_UPDATE = 15;
     public static final int PLAYER_READY = 16;
     public static final int START_GAME = 17;
+
+    // Shop
+    public static final int SHOP_LIST = 18;
+    public static final int SHOP_LIST_DATA = 19;
+    public static final int BUY_ITEM = 20;
+    public static final int BUY_SUCCESS = 21;
+    public static final int BUY_FAIL = 22;
 }

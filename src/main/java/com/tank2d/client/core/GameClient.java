@@ -1,18 +1,32 @@
 package com.tank2d.client.core;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.tank2d.shared.Packet;
-import com.tank2d.shared.PacketType;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
 import java.net.Socket;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import static com.tank2d.client.utils.DataTypeParser.toInt;
-import static com.tank2d.shared.PacketType.*;
+import com.tank2d.shared.Packet;
+import com.tank2d.shared.PacketType;
+import static com.tank2d.shared.PacketType.BUY_FAIL;
+import static com.tank2d.shared.PacketType.BUY_SUCCESS;
+import static com.tank2d.shared.PacketType.LOGIN_FAIL;
+import static com.tank2d.shared.PacketType.LOGIN_OK;
+import static com.tank2d.shared.PacketType.REGISTER_FAIL;
+import static com.tank2d.shared.PacketType.REGISTER_OK;
+import static com.tank2d.shared.PacketType.ROOM_CREATED;
+import static com.tank2d.shared.PacketType.ROOM_JOINED;
+import static com.tank2d.shared.PacketType.ROOM_LIST_DATA;
+import static com.tank2d.shared.PacketType.ROOM_UPDATE;
+import static com.tank2d.shared.PacketType.SHOP_LIST_DATA;
+import static com.tank2d.shared.PacketType.START_GAME;
 
 public class GameClient {
     private Socket socket;
@@ -46,7 +60,6 @@ public class GameClient {
         }
     }
 
-    // --- Listening for packets ---
     private void listen() {
         try {
             String line;
@@ -84,6 +97,20 @@ public class GameClient {
                         listener.onRoomListReceived(rooms);
                     }
                     case START_GAME -> listener.onGameStart(p);
+                    case SHOP_LIST_DATA -> {
+                        List<Map<String, Object>> items = (List<Map<String, Object>>) p.data.get("items");
+                        int gold = toInt(p.data.getOrDefault("gold", 0));
+                        listener.onShopListReceived(items, gold);
+                    }
+                    case BUY_SUCCESS -> {
+                        int gold = toInt(p.data.get("gold"));
+                        String msg = (String) p.data.get("msg");
+                        listener.onBuySuccess(gold, msg);
+                    }
+                    case BUY_FAIL -> {
+                        String msg = (String) p.data.get("msg");
+                        listener.onBuyFail(msg);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -139,6 +166,17 @@ public class GameClient {
 
     public void startGame() {
         sendPacket(new Packet(PacketType.START_GAME));
+    }
+
+    public void requestShopList() {
+        sendPacket(new Packet(PacketType.SHOP_LIST));
+    }
+
+    public void buyItem(int itemId, int quantity) {
+        Packet p = new Packet(PacketType.BUY_ITEM);
+        p.data.put("itemId", itemId);
+        p.data.put("quantity", quantity);
+        sendPacket(p);
     }
 
     // --- Getters & Setters ---

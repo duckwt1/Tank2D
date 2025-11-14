@@ -1,9 +1,9 @@
 package com.tank2d.client.core;
 
-import com.tank2d.shared.Packet;
-
 import java.util.List;
 import java.util.Map;
+
+import com.tank2d.shared.Packet;
 
 /**
  * Interface for handling packets received from server.
@@ -25,6 +25,11 @@ public interface PacketListener {
     
     // Game events
     default void onGameStart(Packet p) {}
+    
+    // Shop events
+    default void onShopListReceived(List<Map<String, Object>> items, int gold) {}
+    default void onBuySuccess(int newGold, String message) {}
+    default void onBuyFail(String message) {}
     
     // Connection events
     default void onDisconnected() {}

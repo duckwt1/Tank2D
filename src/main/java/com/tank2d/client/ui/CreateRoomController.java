@@ -1,14 +1,21 @@
 package com.tank2d.client.ui;
 
+import java.util.List;
+
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
+import com.tank2d.client.utils.AnimationHelper;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-
-import java.util.List;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 
 public class CreateRoomController implements PacketListener {
 
@@ -17,6 +24,7 @@ public class CreateRoomController implements PacketListener {
     @FXML private ComboBox<Integer> cmbMaxPlayers;
     @FXML private Button btnCreate;
     @FXML private Button btnCancel;
+    @FXML private VBox createRoomContainer;
 
     private GameClient client;
 
@@ -27,6 +35,12 @@ public class CreateRoomController implements PacketListener {
 
     @FXML
     public void initialize() {
+        // Fade in animation
+        if (createRoomContainer != null) {
+            createRoomContainer.setOpacity(0);
+            AnimationHelper.fadeIn(createRoomContainer, 500);
+        }
+        
         cmbMaxPlayers.getSelectionModel().select(0);
         btnCreate.setOnAction(e -> onCreate());
         btnCancel.setOnAction(e -> onCancel());
@@ -47,17 +61,19 @@ public class CreateRoomController implements PacketListener {
         String password = txtPassword.getText();
 
         if (roomName.isEmpty()) {
-            showAlert("Room name cannot be empty!");
+//            showAlert("Room name cannot be empty!");
+            AnimationHelper.shake(txtRoomName);
             return;
         }
         
         if (maxPlayers == null) {
-            showAlert("Please select max players!");
+//            showAlert("Please select max players!");
+            AnimationHelper.shake(cmbMaxPlayers);
             return;
         }
 
+        AnimationHelper.showButtonLoading(btnCreate);
         client.createRoom(roomName, maxPlayers, password);
-        showAlert("Creating room...");
     }
 
     @FXML
@@ -73,13 +89,18 @@ public class CreateRoomController implements PacketListener {
     @Override
     public void onRoomCreated(int roomId, String roomName, int maxPlayers, List<String> players) {
         Platform.runLater(() -> {
-            WaitingRoomController controller = UiNavigator.loadSceneWithController("waiting_room.fxml");
-            controller.setClient(client);
-            controller.setRoomData(roomId, roomName, maxPlayers);
-            controller.setHost(true);
-            controller.updatePlayerList(players);
-            // Transfer listener to WaitingRoomController
-            client.setPacketListener(controller);
+            AnimationHelper.hideButtonLoading(btnCreate, "Create");
+            
+            // Fade out before navigating
+            AnimationHelper.fadeOut(createRoomContainer, 300, () -> {
+                WaitingRoomController controller = UiNavigator.loadSceneWithController("waiting_room.fxml");
+                controller.setClient(client);
+                controller.setRoomData(roomId, roomName, maxPlayers);
+                controller.setHost(true);
+                controller.updatePlayerList(players);
+                // Transfer listener to WaitingRoomController
+                client.setPacketListener(controller);
+            });
         });
     }
     

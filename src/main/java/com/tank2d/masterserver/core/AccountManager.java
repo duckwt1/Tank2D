@@ -12,4 +12,12 @@ public class AccountManager {
     public static boolean register(String username, String password) {
         return repo.register(username, password);
     }
+
+    public static int getUserIdByUsername(String username) {
+        return repo.getUserIdByUsername(username);
+    }
+
+    public static int getUserGold(int userId) {
+        return repo.getUserGold(userId);
+    }
 }
