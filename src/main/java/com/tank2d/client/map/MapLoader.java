@@ -2,6 +2,7 @@ package com.tank2d.client.map;
 
 // Pham Ngoc Duc - Lớp 23JIT - Trường VKU - MSSV: 23IT059
 
+import com.tank2d.client.entity.Entity;
 import com.tank2d.client.entity.Player;
 import com.tank2d.shared.Constant;
 import javafx.scene.canvas.GraphicsContext;
@@ -34,6 +35,7 @@ public class MapLoader {
     public Tile[] tiles;
     public int width;
     public int height;
+    public Polygon testCollisionP;
 
     public MapLoader(int id) {
         this.id = id;
@@ -89,18 +91,16 @@ public class MapLoader {
 
                 TileSet ts = new TileSet();
                 ts.firstgid = jTs.getInt("firstgid");
-
                 File mapDir = mapFile.getParentFile();
                 String rawSource = jTs.getString("source");
                 File tsxFile = new File(mapDir, rawSource);
                 if (!tsxFile.exists()) tsxFile = new File("res/tileset/" + rawSource);
-
                 if (!tsxFile.exists()) {
                     System.err.println("❌ Tileset not found: " + tsxFile.getAbsolutePath());
                     continue;
                 }
 
-                // Parse .tsx
+                // Parse .tsx (XML)
                 DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
                 DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
                 Document doc = dBuilder.parse(tsxFile);
@@ -117,96 +117,103 @@ public class MapLoader {
                     Element imageElement = (Element) imageNodes.item(0);
                     String imageSource = imageElement.getAttribute("source");
                     String imageFileName = new File(imageSource).getName();
-
                     ts.image = new Image("file:res/tile/" + imageFileName);
                     tileSets.add(ts);
                     maxGid = Math.max(maxGid, ts.firstgid + ts.tileCount - 1);
-
-                    System.out.println("🧩 Loaded tileset: " + imageFileName);
+                    System.out.println("🧩 Loaded tileset image: " + imageFileName + " firstgid=" + ts.firstgid);
                 }
 
-                // ===== Load collision polygons =====
+                // ===== Load collision polygons defined inside this tileset (.tsx)
                 NodeList tileCollisionList = tilesetElement.getElementsByTagName("tile");
-                ArrayList<Tile> collisionTiles = new ArrayList<>();
-
                 for (int k = 0; k < tileCollisionList.getLength(); k++) {
                     Element tileElement = (Element) tileCollisionList.item(k);
-                    int tileId = Integer.parseInt(tileElement.getAttribute("id"));
+                    int localId = Integer.parseInt(tileElement.getAttribute("id")); // local id inside tileset
 
                     NodeList objectGroupList = tileElement.getElementsByTagName("objectgroup");
                     if (objectGroupList.getLength() == 0) continue;
-
                     Element objectGroup = (Element) objectGroupList.item(0);
                     NodeList objectList = objectGroup.getElementsByTagName("object");
                     if (objectList.getLength() == 0) continue;
-
                     Element objectElement = (Element) objectList.item(0);
-                    float offsetX = Float.parseFloat(objectElement.getAttribute("x"));
-                    float offsetY = Float.parseFloat(objectElement.getAttribute("y"));
+
+                    float offsetX = 0f;
+                    float offsetY = 0f;
+                    if (objectElement.hasAttribute("x")) offsetX = Float.parseFloat(objectElement.getAttribute("x"));
+                    if (objectElement.hasAttribute("y")) offsetY = Float.parseFloat(objectElement.getAttribute("y"));
 
                     NodeList polygonList = objectElement.getElementsByTagName("polygon");
                     if (polygonList.getLength() == 0) continue;
-
                     Element polygonElement = (Element) polygonList.item(0);
-                    String pointsString = polygonElement.getAttribute("points");
-                    String[] pointPairs = pointsString.trim().split(" ");
+
+                    String pointsString = polygonElement.getAttribute("points").trim();
+                    String[] pointPairs = pointsString.split(" ");
 
                     int[] xPoints = new int[pointPairs.length];
                     int[] yPoints = new int[pointPairs.length];
-                    for (int l = 0; l < pointPairs.length; l++) {
-                        String[] xy = pointPairs[l].split(",");
+                    for (int p = 0; p < pointPairs.length; p++) {
+                        String[] xy = pointPairs[p].split(",");
                         float px = Float.parseFloat(xy[0]);
                         float py = Float.parseFloat(xy[1]);
-                        xPoints[l] = Math.round(offsetX + px);
-                        yPoints[l] = Math.round(offsetY + py);
+                        // polygon stored in tile-local coordinates (including object's offset)
+                        xPoints[p] = Math.round(offsetX + px);
+                        yPoints[p] = Math.round(offsetY + py);
                     }
 
-                    Polygon polygon = new Polygon(xPoints, yPoints, pointPairs.length);
+                    Polygon poly = new Polygon(xPoints, yPoints, pointPairs.length);
+                    ts.collisionByLocalId.put(localId, poly);
+                } // end tileCollisionList
 
-                    Tile tile = new Tile();
-                    tile.gid = tileId;
-                    tile.collision = true;
-                    tile.solidPolygon = polygon;
-                    collisionTiles.add(tile);
-                }
+                System.out.println("⚙️ tileset.firstgid=" + ts.firstgid + " collision local count=" + ts.collisionByLocalId.size());
+            } // end tilesets loop
 
-                ts.collisionTile = collisionTiles;
-                System.out.println("⚙️ Collision tiles in tileset: " + collisionTiles.size());
-            }
-
-            // ===== Build GID-indexed tiles =====
+            // ===== Build global tiles[] indexed by GID and attach collision polygons =====
+            if (maxGid < 0) maxGid = 0;
             tiles = new Tile[maxGid + 1];
+
             for (TileSet ts : tileSets) {
-                int tilesPerRow = ts.columns;
-                for (int i = 0; i < ts.tileCount; i++) {
-                    int gid = ts.firstgid + i;
-                    int sx = (i % tilesPerRow) * ts.tileWidth;
-                    int sy = (i / tilesPerRow) * ts.tileHeight;
+                for (int local = 0; local < ts.tileCount; local++) {
+                    int gid = ts.firstgid + local;
+                    Tile t = new Tile();
+                    t.gid = gid;
 
-                    Tile tile = new Tile();
-                    tile.gid = gid;
-
-                    // crop from tileset
-                    tile.image = new WritableImage(
-                            ts.image.getPixelReader(),
-                            sx, sy,
-                            ts.tileWidth, ts.tileHeight
-                    );
-
-                    Tile check = exist(gid - 1, ts.collisionTile);
-                    if (check != null) {
-                        tile.collision = true;
-                        tile.solidPolygon = check.solidPolygon;
+                    // Crop the sprite for this tile
+                    int sx = (local % ts.columns) * ts.tileWidth;
+                    int sy = (local / ts.columns) * ts.tileHeight;
+                    try {
+                        t.image = new WritableImage(ts.image.getPixelReader(), sx, sy, ts.tileWidth, ts.tileHeight);
+                    } catch (Exception ex) {
+                        t.image = null;
                     }
-                    tiles[gid] = tile;
+
+                    // If this tileset defined a collision polygon for this local id -> attach to global gid
+                    Polygon localPoly = ts.collisionByLocalId.get(local);
+                    if (localPoly != null) {
+                        // store polygon (tile-local coords) on tile
+                        t.collision = true;
+                        // Clone the polygon so later modifications don't affect original
+                        Polygon cloned = new Polygon(localPoly.xpoints, localPoly.ypoints, localPoly.npoints);
+                        t.solidPolygon = cloned;
+                    }
+
+                    // Place into tiles[] (some gids might be unused -> remain null)
+                    if (gid >= 0 && gid < tiles.length) tiles[gid] = t;
                 }
             }
 
-            System.out.println("✅ Map " + id + " loaded successfully with " + tileSets.size() + " tilesets.");
+            // Debug: print all GIDs that have collision polygon
+            StringBuilder sb = new StringBuilder("Collision GIDs: ");
+            for (int g = 0; g < tiles.length; g++) {
+                if (tiles[g] != null && tiles[g].collision) sb.append(g).append(", ");
+            }
+            System.out.println(sb.toString());
+
+            System.out.println("✅ Map " + id + " loaded successfully (maxGid=" + maxGid + ").");
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private Tile exist(int id, ArrayList<Tile> list) {
         for (Tile tile : list) {
@@ -246,54 +253,124 @@ public class MapLoader {
         // Debug player info
         gc.setFill(Color.WHITE);
         gc.fillText("Player: (" + player.x + ", " + player.y + ")", 10, 20);
+
+        if (testCollisionP != null) {
+            gc.setStroke(Color.MAGENTA);
+            gc.setLineWidth(2);
+
+            // Chuyển polygon sang mảng double[]
+            double[] xs = new double[testCollisionP.npoints];
+            double[] ys = new double[testCollisionP.npoints];
+
+            for (int i = 0; i < testCollisionP.npoints; i++) {
+                xs[i] = testCollisionP.xpoints[i];
+                ys[i] = testCollisionP.ypoints[i];
+            }
+
+            gc.strokePolygon(xs, ys, testCollisionP.npoints);
+        }
     }
     // In MapLoader.java
-    public boolean checkCollision(double x, double y, Polygon solidArea) {
-        // Create player bounding box (based on position)
-        Rectangle playerRect = new Rectangle(
-                (int) (x + 8),  // offset (same as solidAreaX)
-                (int) (y + 16), // offset (same as solidAreaY)
-                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16),
-                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16)
-        );
+//    public boolean checkCollision(double x, double y, Polygon solidArea) {
+//        // Create player bounding box (based on position)
+//        Rectangle playerRect = new Rectangle(
+//                (int) (x + 8),  // offset (same as solidAreaX)
+//                (int) (y + 16), // offset (same as solidAreaY)
+//                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16),
+//                (int) (Constant.TILESIZE * Constant.CHAR_SCALE - 16)
+//        );
+//
+//        int minTileX = playerRect.x / Constant.TILESIZE;
+//        int maxTileX = (playerRect.x + playerRect.width) / Constant.TILESIZE;
+//        int minTileY = playerRect.y / Constant.TILESIZE;
+//        int maxTileY = (playerRect.y + playerRect.height) / Constant.TILESIZE;
+//
+//        for (var layer : layers) {
+//            for (int ty = minTileY; ty <= maxTileY; ty++) {
+//                for (int tx = minTileX; tx <= maxTileX; tx++) {
+//                    // Bounds safety
+//                    if (ty < 0 || ty >= layer.data.length || tx < 0 || tx >= layer.data[0].length)
+//                        continue;
+//
+//                    int tileId = layer.data[ty][tx];
+//                    if (tileId == 0) continue;
+//
+//                    var tile = tiles[tileId];
+//                    if (tile == null || !tile.collision || tile.solidPolygon == null)
+//                        continue;
+//
+//                    // Build world-space polygon
+//                    Polygon poly = new Polygon(tile.solidPolygon.xpoints, tile.solidPolygon.ypoints, tile.solidPolygon.npoints);
+//                    poly.translate(tx * Constant.TILESIZE, ty * Constant.TILESIZE);
+//
+//                    // Check intersection
+//                    Area tileArea = new Area(poly);
+//                    Area playerArea = new Area(playerRect);
+//                    tileArea.intersect(playerArea);
+//
+//                    if (!tileArea.isEmpty()) {
+//                        return true; // Collision!
+//                    }
+//                }
+//            }
+//        }
+//
+//        return false; // No collision
+//    }
+    public boolean checkCollision(double x, double y, Entity player) {
 
-        int minTileX = playerRect.x / Constant.TILESIZE;
-        int maxTileX = (playerRect.x + playerRect.width) / Constant.TILESIZE;
-        int minTileY = playerRect.y / Constant.TILESIZE;
-        int maxTileY = (playerRect.y + playerRect.height) / Constant.TILESIZE;
+        Polygon playerPoly = player.solidArea;
 
-        for (var layer : layers) {
+        // Quét các tile trong vùng player
+        int minTileX = (int) ((x - Constant.TILESIZE) / Constant.TILESIZE);
+        int minTileY = (int) ((y - Constant.TILESIZE) / Constant.TILESIZE);
+        int maxTileX = (int) ((x + Constant.TILESIZE) / Constant.TILESIZE);
+        int maxTileY = (int) ((y + Constant.TILESIZE) / Constant.TILESIZE);
+
+        for (Layer layer : layers) {
+            if (!layer.visible) continue;
+
             for (int ty = minTileY; ty <= maxTileY; ty++) {
                 for (int tx = minTileX; tx <= maxTileX; tx++) {
-                    // Bounds safety
-                    if (ty < 0 || ty >= layer.data.length || tx < 0 || tx >= layer.data[0].length)
+
+                    if (ty < 0 || ty >= height || tx < 0 || tx >= width)
                         continue;
 
-                    int tileId = layer.data[ty][tx];
-                    if (tileId == 0) continue;
+                    int gid = layer.data[ty][tx];
+                    if (gid <= 0 || gid >= tiles.length) continue;
 
-                    var tile = tiles[tileId];
+                    Tile tile = tiles[gid];
                     if (tile == null || !tile.collision || tile.solidPolygon == null)
                         continue;
 
-                    // Build world-space polygon
-                    Polygon poly = new Polygon(tile.solidPolygon.xpoints, tile.solidPolygon.ypoints, tile.solidPolygon.npoints);
-                    poly.translate(tx * Constant.TILESIZE, ty * Constant.TILESIZE);
+                    // Tạo polygon thế giới của tile
+                    Polygon tilePoly = new Polygon(
+                            tile.solidPolygon.xpoints,
+                            tile.solidPolygon.ypoints,
+                            tile.solidPolygon.npoints
+                    );
+                    tilePoly.translate(
+                            tx * Constant.TILESIZE,
+                            ty * Constant.TILESIZE
+                    );
 
-                    // Check intersection
-                    Area tileArea = new Area(poly);
-                    Area playerArea = new Area(playerRect);
-                    tileArea.intersect(playerArea);
+                    // Dùng Area để kiểm tra chính xác polygon vs polygon
+                    Area a = new Area(playerPoly);
+                    a.intersect(new Area(tilePoly));
 
-                    if (!tileArea.isEmpty()) {
-                        return true; // Collision!
+                    if (!a.isEmpty()) {
+                        return true; // CHẠM
                     }
                 }
             }
         }
 
-        return false; // No collision
+        return false;
     }
+
+
+
+
 
 
     private javafx.scene.shape.Polygon toFxPolygon(Polygon awtPoly) {
@@ -306,5 +383,89 @@ public class MapLoader {
         }
         return fx;
     }
+
+    public void drawCollision(GraphicsContext gc, Player player) {
+        if (tiles == null || layers.isEmpty()) return;
+        gc.setStroke(Color.RED);
+        gc.setLineWidth(2);
+
+        double px = player.x;
+        double py = player.y;
+
+        int playerTileX = (int) (px / Constant.TILESIZE);
+        int playerTileY = (int) (py / Constant.TILESIZE);
+        int halfCols = Constant.SCREEN_COL / 2;
+        int halfRows = Constant.SCREEN_ROW / 2;
+
+        for (Layer layer : layers) {
+            if (!layer.visible) continue;
+            for (int ty = playerTileY - halfRows; ty <= playerTileY + halfRows; ty++) {
+                for (int tx = playerTileX - halfCols; tx <= playerTileX + halfCols; tx++) {
+                    if (ty < 0 || ty >= layer.data.length) continue;
+                    if (tx < 0 || tx >= layer.data[0].length) continue;
+
+                    int gid = layer.data[ty][tx];
+                    if (gid <= 0 || gid >= tiles.length) continue;
+                    Tile tile = tiles[gid];
+                    if (tile == null || !tile.collision || tile.solidPolygon == null) continue;
+
+                    Polygon poly = tile.solidPolygon;
+                    for (int i = 0; i < poly.npoints; i++) {
+                        int nxt = (i + 1) % poly.npoints;
+                        double worldX1 = poly.xpoints[i] + tx * Constant.TILESIZE;
+                        double worldY1 = poly.ypoints[i] + ty * Constant.TILESIZE;
+                        double worldX2 = poly.xpoints[nxt] + tx * Constant.TILESIZE;
+                        double worldY2 = poly.ypoints[nxt] + ty * Constant.TILESIZE;
+
+                        double screenX1 = worldX1 - px + Constant.SCREEN_WIDTH / 2.0;
+                        double screenY1 = worldY1 - py + Constant.SCREEN_HEIGHT / 2.0;
+                        double screenX2 = worldX2 - px + Constant.SCREEN_WIDTH / 2.0;
+                        double screenY2 = worldY2 - py + Constant.SCREEN_HEIGHT / 2.0;
+
+                        gc.strokeLine(screenX1, screenY1, screenX2, screenY2);
+                    }
+                }
+            }
+        }
+
+        // draw player's solid area too
+        player.drawSolidArea(gc);
+    }
+
+
+    public void debugDrawTileCoordinates(GraphicsContext gc, Player player) {
+        gc.setFill(Color.YELLOW);
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1);
+        gc.setFont(javafx.scene.text.Font.font(10));
+
+        int playerTileX = (int) (player.x / Constant.TILESIZE);
+        int playerTileY = (int) (player.y / Constant.TILESIZE);
+
+        int halfCols = Constant.SCREEN_COL / 2;
+        int halfRows = Constant.SCREEN_ROW / 2;
+
+        for (int ty = playerTileY - halfRows; ty <= playerTileY + halfRows; ty++) {
+            for (int tx = playerTileX - halfCols; tx <= playerTileX + halfCols; tx++) {
+
+                // out of map
+                if (ty < 0 || ty >= height || tx < 0 || tx >= width)
+                    continue;
+
+                double worldX = tx * Constant.TILESIZE;
+                double worldY = ty * Constant.TILESIZE;
+
+                double screenX = worldX - player.x + Constant.SCREEN_WIDTH / 2.0;
+                double screenY = worldY - player.y + Constant.SCREEN_HEIGHT / 2.0;
+
+                String label = tx + "," + ty;
+
+                gc.strokeText(label, screenX + 4, screenY + 12);
+                gc.fillText(label,   screenX + 4, screenY + 12);
+            }
+        }
+    }
+
+
 
 }

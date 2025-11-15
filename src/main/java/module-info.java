@@ -21,4 +21,6 @@ module com.tank2d.tank2d {
     exports com.tank2d.masterserver.db;
     exports com.tank2d.masterserver.ui;
     exports com.tank2d.masterserver.core.room;
+    exports com.tank2d.client.entity;
+
 }

@@ -102,7 +102,7 @@ public class OtherPlayer extends Entity{
         }
 
         // ---- Check collision ----
-        if (!mapLoader.checkCollision(newX, newY, solidArea)) {
+        if (!mapLoader.checkCollision(newX, newY, this)) {
             x = newX;
             y = newY;
         } else {

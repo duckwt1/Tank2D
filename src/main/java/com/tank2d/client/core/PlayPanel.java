@@ -39,10 +39,11 @@ public class PlayPanel extends Pane implements Runnable {
         // 🗺️ Lấy mapId từ dữ liệu
 
         this.userName = userName;
-        int mapId = 1;
+        int mapId = 3;
         if (!playerDataList.isEmpty() && playerDataList.get(0).containsKey("mapId")) {
             mapId = toInt(playerDataList.get(0).get("mapId"));
         }
+
 
         this.mapLoader = new MapLoader(mapId);
         this.canvas = new Canvas(Constant.SCREEN_WIDTH, Constant.SCREEN_HEIGHT);
@@ -225,7 +226,10 @@ public class PlayPanel extends Pane implements Runnable {
     private void draw() {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         mapLoader.draw(gc, this.player);
+        mapLoader.drawCollision(gc, this.player);
         player.draw(gc);
+        player.drawSolidArea(gc);
+        //mapLoader.debugDrawTileCoordinates(gc, player);
         for (OtherPlayer oP : players) oP.draw(gc);
     }
 }

@@ -29,4 +29,28 @@ public abstract class Entity {
     public void draw(GraphicsContext gc) {
 
     }
+    public void drawCollision(GraphicsContext gc) {
+        if (solidArea == null) {
+            System.out.println("you didnt create a solid polygon");
+            return;
+        }
+
+        // Lấy số điểm
+        int n = solidArea.npoints;
+
+        double[] xs = new double[n];
+        double[] ys = new double[n];
+
+        // Chuyển polygon AWT sang tọa độ màn hình JavaFX
+        for (int i = 0; i < n; i++) {
+            xs[i] = solidArea.xpoints[i] + x;
+            ys[i] = solidArea.ypoints[i] + y;
+        }
+
+        // Vẽ viền polygon
+        gc.setLineWidth(2);
+        gc.setStroke(javafx.scene.paint.Color.RED);
+        gc.strokePolygon(xs, ys, n);
+    }
+
 }

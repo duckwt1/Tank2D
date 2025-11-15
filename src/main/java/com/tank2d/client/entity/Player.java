@@ -23,16 +23,16 @@ public class Player extends Entity {
     private double gunAngle = 0;
     private boolean backward; // trạng thái phím lùi
     private MapLoader mapLoader;
-    public int solidAreaX = 8;
+    public int solidAreaX = 12;
     public int solidAreaY = 16;
-    public int solidWidth = (int) (Constant.TILESIZE * Constant.CHAR_SCALE - solidAreaX * 2);
-    public int solidHeight = (int) (Constant.TILESIZE * Constant.CHAR_SCALE - solidAreaY);
+    public int solidWidth = (int) (Constant.PLAYER_TILE_SIZE * Constant.CHAR_SCALE - solidAreaX * 2 );
+    public int solidHeight = (int) (Constant.PLAYER_TILE_SIZE * Constant.CHAR_SCALE - solidAreaY * 2);
     // Trạng thái phím
     private boolean up, down, left, right;
 
     // Tốc độ di chuyển và tốc độ xoay
     private final double moveSpeed = 2.5;
-    private final double rotateSpeed = 2.0; // độ/khung hình
+    private final double rotateSpeed = 6.0; // độ/khung hình
 
     // Pivot của nòng
     private double gunPivotX;
@@ -40,11 +40,40 @@ public class Player extends Entity {
 
     public Player(double x, double y, Polygon solidArea, double speed, MapLoader mapLoader, String playerName) {
         super(x, y, solidArea, speed, mapLoader);
+        //initSolidArea();
         this.playerName = playerName;
         this.mapLoader = mapLoader;
         getImages();
 
     }
+    public void initSolidArea() {
+        solidArea = new Polygon();
+
+        double rad = Math.toRadians(bodyAngle);
+
+        // Tank center is the pivot
+        double cx = x;
+        double cy = y;
+
+        // 4 corners BEFORE rotation (relative to body center)
+        double[][] corners = {
+                { solidAreaX - bodyImage.getWidth()/2,  solidAreaY - bodyImage.getHeight()/2 },
+                { solidAreaX + solidWidth - bodyImage.getWidth()/2,  solidAreaY - bodyImage.getHeight()/2 },
+                { solidAreaX + solidWidth - bodyImage.getWidth()/2,  solidAreaY + solidHeight - bodyImage.getHeight()/2 },
+                { solidAreaX - bodyImage.getWidth()/2,  solidAreaY + solidHeight - bodyImage.getHeight()/2 }
+        };
+
+        // Apply rotation to all corners
+        for (double[] c : corners) {
+            double rx = c[0] * Math.cos(rad) - c[1] * Math.sin(rad);
+            double ry = c[0] * Math.sin(rad) + c[1] * Math.cos(rad);
+
+            solidArea.addPoint((int)(cx + rx), (int)(cy + ry));
+        }
+    }
+
+
+
 
     @Override
     public void getImages() {
@@ -64,6 +93,7 @@ public class Player extends Entity {
 
     @Override
     public void update() {
+        initSolidArea();
         double dx = 0, dy = 0;
 
         if (up) dy -= moveSpeed;
@@ -98,7 +128,7 @@ public class Player extends Entity {
         }
 
         // ---- Check collision ----
-        if (!mapLoader.checkCollision(newX, newY, solidArea)) {
+        if (!mapLoader.checkCollision(newX, newY, this)) {
             x = newX;
             y = newY;
         } else {
@@ -226,4 +256,40 @@ public class Player extends Entity {
     public void setBodyAngle(double bodyAngle) {
         this.bodyAngle = bodyAngle;
     }
+
+    public Polygon getWorldSolidArea() {
+        Polygon worldPoly = new Polygon();
+
+        for (int i = 0; i < solidArea.npoints; i++) {
+            int worldX = (int) (x + solidArea.xpoints[i]);
+            int worldY = (int) (y + solidArea.ypoints[i]);
+            worldPoly.addPoint(worldX, worldY);
+        }
+
+        return worldPoly;
+    }
+    public void drawSolidArea(GraphicsContext gc) {
+        if (solidArea == null) return;
+
+        gc.setStroke(Color.LIME);
+        gc.setLineWidth(2);
+
+        double centerX = Constant.SCREEN_WIDTH / 2.0;
+        double centerY = Constant.SCREEN_HEIGHT / 2.0;
+
+        for (int i = 0; i < solidArea.npoints; i++) {
+            // Convert world → screen
+            double sx1 = centerX + (solidArea.xpoints[i] - x);
+            double sy1 = centerY + (solidArea.ypoints[i] - y);
+
+            int j = (i + 1) % solidArea.npoints;
+
+            double sx2 = centerX + (solidArea.xpoints[j] - x);
+            double sy2 = centerY + (solidArea.ypoints[j] - y);
+
+            gc.strokeLine(sx1, sy1, sx2, sy2);
+        }
+    }
+
+
 }
