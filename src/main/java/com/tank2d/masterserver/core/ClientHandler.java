@@ -1,24 +1,31 @@
 package com.tank2d.masterserver.core;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
 import com.tank2d.masterserver.core.room.Room;
 import com.tank2d.masterserver.core.room.RoomManager;
+import com.tank2d.masterserver.core.shop.BuyResult;
+import com.tank2d.masterserver.ui.MasterServerDashboard.ServerEvent;
 import com.tank2d.shared.Packet;
 import com.tank2d.shared.PacketType;
-import com.tank2d.masterserver.ui.MasterServerDashboard.ServerEvent;
-import org.json.JSONObject;
-
-import java.io.*;
-import java.net.Socket;
-import java.util.*;
-import java.util.function.Consumer;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
     private BufferedReader in;
     private PrintWriter out;
     private String username;
-    private Consumer<ServerEvent> eventCallback;
-    private String clientIP;
+    private final Consumer<ServerEvent> eventCallback;
+    private final String clientIP;
     private Room currentRoom;
 
     public ClientHandler(Socket socket, Consumer<ServerEvent> eventCallback) {
@@ -80,6 +87,8 @@ public class ClientHandler implements Runnable {
             case PacketType.PLAYER_READY -> handlePlayerReady(p);
             case PacketType.START_GAME -> handleStartGame(p);
             case PacketType.ROOM_LIST -> handleRoomList(p);
+            case PacketType.SHOP_LIST -> handleShopList(p);
+            case PacketType.BUY_ITEM -> handleBuyItem(p);
         }
     }
 
@@ -87,7 +96,20 @@ public class ClientHandler implements Runnable {
         username = (String) p.data.get("username");
         String password = (String) p.data.get("password");
 
+        System.out.println("=== LOGIN ATTEMPT ===");
+        System.out.println("Username: '" + username + "'");
+        System.out.println("Password length: " + (password != null ? password.length() : "null"));
+
         boolean success = AccountManager.login(username, password);
+        
+        if (success) {
+            System.out.println("✓ Login SUCCESS for: " + username);
+            System.out.println("ClientHandler.username is now set to: " + this.username);
+        } else {
+            System.out.println("✗ Login FAILED for: " + username);
+            this.username = null; // Clear username on failed login
+        }
+        
         Packet resp = new Packet(success ? PacketType.LOGIN_OK : PacketType.LOGIN_FAIL);
         resp.data.put("msg", success ? "Welcome " + username + "!" : "Invalid credentials!");
         send(resp);
@@ -229,8 +251,83 @@ public class ClientHandler implements Runnable {
         System.out.println("Sent START_GAME to " + currentRoom.getPlayers().size() + " players.");
     }
 
+    private void handleShopList(Packet p) {
+        var items = ShopManager.getAllShopItems();
+        
+        Packet resp = new Packet(PacketType.SHOP_LIST_DATA);
+        List<Map<String, Object>> itemsData = new ArrayList<>();
+        
+        for (var item : items) {
+            Map<String, Object> itemMap = new HashMap<>();
+            itemMap.put("id", item.id);
+            itemMap.put("name", item.name);
+            itemMap.put("description", item.description);
+            itemMap.put("price", item.price);
+            itemMap.put("hp", item.hp);
+            itemMap.put("mp", item.mp);
+            itemMap.put("spd", item.spd);
+            itemMap.put("dmg", item.dmg);
+            itemMap.put("discount", item.discount);
+            itemMap.put("stock", item.stock);
+            itemsData.add(itemMap);
+        }
+        
+        resp.data.put("items", itemsData);
+        
+        // ✅ Gửi thêm gold của user
+        if (username != null) {
+            int userId = AccountManager.getUserIdByUsername(username);
+            if (userId > 0) {
+                int gold = AccountManager.getUserGold(userId);
+                resp.data.put("gold", gold);
+                System.out.println("Sent shop list with " + items.size() + " items and gold: " + gold + " to " + username);
+            }
+        }
+        
+        send(resp);
+    }
 
-
+    private void handleBuyItem(Packet p) {
+        System.out.println("=== handleBuyItem called ===");
+        System.out.println("Current username: " + username);
+        
+        if (username == null) {
+            System.out.println("ERROR: username is NULL!");
+            sendError("You must be logged in!");
+            return;
+        }
+        
+        // Lấy userId từ username
+        System.out.println("Querying userId for username: '" + username + "'");
+        int userId = AccountManager.getUserIdByUsername(username);
+        System.out.println("Retrieved userId: " + userId);
+        
+        if (userId <= 0) {
+            System.out.println("ERROR: User not found in database! userId=" + userId);
+            sendError("User not found!");
+            return;
+        }
+        
+        int itemId = ((Number) p.data.get("itemId")).intValue();
+        int quantity = ((Number) p.data.get("quantity")).intValue();
+        
+        System.out.println(username + " is buying item " + itemId + " x" + quantity);
+        
+        BuyResult result = ShopManager.buyItem(userId, itemId, quantity);
+        
+        Packet resp;
+        if ("SUCCESS".equals(result.status)) {
+            resp = new Packet(PacketType.BUY_SUCCESS);
+            resp.data.put("gold", result.remainingGold);
+            resp.data.put("msg", "Purchase successful!");
+            System.out.println(username + " bought item successfully. Remaining gold: " + result.remainingGold);
+        } else {
+            resp = new Packet(PacketType.BUY_FAIL);
+            resp.data.put("msg", result.status);
+            System.out.println(username + " purchase failed: " + result.status);
+        }
+        send(resp);
+    }
 
     private void broadcastToRoom(Room room, int type, String msg) {
         Packet p = new Packet(type);

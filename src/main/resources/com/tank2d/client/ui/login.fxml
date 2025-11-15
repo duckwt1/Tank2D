@@ -16,7 +16,7 @@
             fx:controller="com.tank2d.client.ui.LoginController">
 
     <!-- Main Login Container -->
-    <VBox alignment="CENTER" layoutX="225.0" layoutY="100.0" prefHeight="400.0" prefWidth="350.0"
+    <VBox fx:id="loginContainer" alignment="CENTER" layoutX="225.0" layoutY="100.0" prefHeight="400.0" prefWidth="350.0"
           spacing="15.0" style="-fx-background-color: #f4e8c1; -fx-border-color: #704214; -fx-border-width: 4; -fx-background-radius: 5; -fx-border-radius: 5;">
 
         <padding>

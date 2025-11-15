@@ -2,9 +2,15 @@ package com.tank2d.client.ui;
 
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
+import com.tank2d.client.utils.AnimationHelper;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 
 public class RegisterController implements PacketListener {
 
@@ -13,31 +19,45 @@ public class RegisterController implements PacketListener {
     @FXML private PasswordField txtConfirmPassword;
     @FXML private TextField txtEmail;
     @FXML private Label lblStatus;
+    @FXML private Button btnRegister;
+    @FXML private VBox registerContainer;
 
     private GameClient client;
 
     @FXML
     public void initialize() {
-        // Client will be set from LoginController
+        // Slide in from right animation
+        if (registerContainer != null) {
+            registerContainer.setTranslateX(300);
+            AnimationHelper.slideInFromRight(registerContainer, 400);
+        }
     }
 
     @FXML
     public void onRegisterClick() {
-        String username = txtUsername.getText();
-        String password = txtPassword.getText();
-        String confirmPassword = txtConfirmPassword.getText();
-        String email = txtEmail.getText();
+        String username = txtUsername.getText().trim();
+        String password = txtPassword.getText().trim();
+        String confirmPassword = txtConfirmPassword.getText().trim();
+        String email = txtEmail.getText().trim();
 
         if (username.isEmpty() || password.isEmpty()) {
             lblStatus.setText("Please fill in all information!");
+            AnimationHelper.shake(txtUsername);
+            AnimationHelper.shake(txtPassword);
             return;
         }
 
         if (!password.equals(confirmPassword)) {
             lblStatus.setText("Password doesn't match!");
+            AnimationHelper.shake(txtPassword);
+            AnimationHelper.shake(txtConfirmPassword);
             return;
         }
 
+        // Show loading
+        AnimationHelper.showButtonLoading(btnRegister);
+        lblStatus.setText("Creating account...");
+        
         client.register(username, password, email);
     }
 
@@ -62,14 +82,24 @@ public class RegisterController implements PacketListener {
     @Override
     public void onRegisterSuccess(String message) {
         Platform.runLater(() -> {
+            AnimationHelper.hideButtonLoading(btnRegister, "Register");
             lblStatus.setText(message);
-            // Wait a bit then navigate to login
+            AnimationHelper.bounce(lblStatus);
+            
+            // Wait a bit then navigate to login with fade
             new Thread(() -> {
                 try {
                     Thread.sleep(1500);
-                    Platform.runLater(() -> UiNavigator.loadScene("login.fxml"));
+                    Platform.runLater(() -> {
+                        AnimationHelper.fadeOut(registerContainer, 300, () -> {
+                            LoginController controller = UiNavigator.loadSceneWithController("login.fxml");
+                            if (controller != null) {
+                                controller.setClient(client);
+                            }
+                        });
+                    });
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    System.err.println("Sleep interrupted: " + e.getMessage());
                 }
             }).start();
         });
@@ -77,7 +107,11 @@ public class RegisterController implements PacketListener {
     
     @Override
     public void onRegisterFail(String message) {
-        Platform.runLater(() -> lblStatus.setText(message));
+        Platform.runLater(() -> {
+            AnimationHelper.hideButtonLoading(btnRegister, "Register");
+            lblStatus.setText(message);
+            AnimationHelper.shake(txtUsername);
+        });
     }
     
     @Override

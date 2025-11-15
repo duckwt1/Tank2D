@@ -18,7 +18,7 @@
             fx:controller="com.tank2d.client.ui.CreateRoomController">
 
     <!-- Main Create Room Container -->
-    <VBox alignment="CENTER" layoutX="175.0" layoutY="70.0" prefHeight="460.0" prefWidth="450.0"
+    <VBox fx:id="createRoomContainer" alignment="CENTER" layoutX="175.0" layoutY="70.0" prefHeight="460.0" prefWidth="450.0"
           spacing="15.0"
           style="-fx-background-color: #f4e8c1; -fx-border-color: #704214; -fx-border-width: 4; -fx-background-radius: 5; -fx-border-radius: 5;">
 

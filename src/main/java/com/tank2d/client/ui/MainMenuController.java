@@ -1,14 +1,15 @@
 package com.tank2d.client.ui;
 
+import java.util.List;
+import java.util.Map;
+
 import com.tank2d.client.core.GameClient;
 import com.tank2d.client.core.PacketListener;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-
-import java.util.List;
-import java.util.Map;
 
 public class MainMenuController implements PacketListener {
 
@@ -39,7 +40,10 @@ public class MainMenuController implements PacketListener {
 
 
     private void onShop(){
-
+        Platform.runLater(() -> {
+            ShopController controller = UiNavigator.loadSceneWithController("shop.fxml");
+            controller.setClient(client);
+        });
     }
 
     private void onJoinRoom() {
