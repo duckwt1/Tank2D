@@ -5,7 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.tank2d.client.entity.ShopItem;
 
@@ -13,40 +15,60 @@ import com.tank2d.client.entity.ShopItem;
 public class ShopRepository {
 
     /**
-     * Lấy tất cả items có sẵn trong shop
+     * Lấy tất cả items có sẵn trong shop với dynamic attributes
      */
     public List<ShopItem> getAllAvailableItems() {
         List<ShopItem> items = new ArrayList<>();
         
+        // Query lấy thông tin cơ bản của item
         String sql = """
-            SELECT item.id, item.name, item.description, item.price,
-                   item.hp, item.mp, item.spd, item.dmg,
+            SELECT item.id, item.name, item.description, item.base_price,
                    shop.discount, shop.stock
             FROM shop
             JOIN item ON item.id = shop.item_id
             WHERE shop.available = 1;
         """;
+        
+        // Query lấy attributes của item
+        String attrSql = """
+            SELECT a.name, ia.attribute_value
+            FROM item_attribute ia
+            JOIN attribute a ON ia.attribute_id = a.id
+            WHERE ia.item_id = ?;
+        """;
 
         try (Connection conn = Connector.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
+             PreparedStatement attrPs = conn.prepareStatement(attrSql);
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
+                int itemId = rs.getInt("id");
+                
+                // Lấy attributes của item này
+                Map<String, Double> attributes = new HashMap<>();
+                attrPs.setInt(1, itemId);
+                ResultSet attrRs = attrPs.executeQuery();
+                while (attrRs.next()) {
+                    attributes.put(
+                        attrRs.getString("name"),
+                        attrRs.getDouble("attribute_value")
+                    );
+                }
+                
+                // Tạo ShopItem với attributes
                 items.add(new ShopItem(
-                    rs.getInt("id"),
+                    itemId,
                     rs.getString("name"),
                     rs.getString("description"),
-                    rs.getInt("price"),
-                    rs.getDouble("hp"),
-                    rs.getDouble("mp"),
-                    rs.getDouble("spd"),
-                    rs.getDouble("dmg"),
+                    rs.getInt("base_price"),
                     rs.getDouble("discount"),
-                    rs.getInt("stock")
+                    rs.getInt("stock"),
+                    attributes
                 ));
             }
             
-            System.out.println("[ShopRepository] Loaded " + items.size() + " items");
+            System.out.println("[ShopRepository] Loaded " + items.size() + " items with dynamic attributes");
 
         } catch (Exception e) {
             System.out.println("[ShopRepository] Error loading items: " + e.getMessage());
@@ -61,7 +83,7 @@ public class ShopRepository {
      */
     public ShopItemInfo getShopItemInfo(Connection conn, int itemId) throws SQLException {
         String sql = """
-            SELECT item.price, shop.discount, shop.stock
+            SELECT item.base_price, shop.discount, shop.stock
             FROM shop
             JOIN item ON item.id = shop.item_id
             WHERE item.id = ? AND shop.available = 1
@@ -74,7 +96,7 @@ public class ShopRepository {
             
             if (rs.next()) {
                 return new ShopItemInfo(
-                    rs.getInt("price"),
+                    rs.getInt("base_price"),
                     rs.getDouble("discount"),
                     rs.getInt("stock")
                 );

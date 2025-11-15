@@ -263,12 +263,10 @@ public class ClientHandler implements Runnable {
             itemMap.put("name", item.name);
             itemMap.put("description", item.description);
             itemMap.put("price", item.price);
-            itemMap.put("hp", item.hp);
-            itemMap.put("mp", item.mp);
-            itemMap.put("spd", item.spd);
-            itemMap.put("dmg", item.dmg);
             itemMap.put("discount", item.discount);
             itemMap.put("stock", item.stock);
+            // ✅ Gửi dynamic attributes
+            itemMap.put("attributes", item.attributes);
             itemsData.add(itemMap);
         }
         

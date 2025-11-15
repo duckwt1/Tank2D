@@ -1,6 +1,7 @@
 package com.tank2d.client.utils;
 
 import com.tank2d.client.entity.ShopItem;
+
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -48,10 +49,28 @@ public class ShopItemCell extends ListCell<ShopItem> {
 
         lblName.setText(item.name);
 
-        lblStats.setText(
-                String.format("HP: %.0f   MP: %.0f   SPD: %.0f   DMG: %.0f",
-                        item.hp, item.mp, item.spd, item.dmg)
-        );
+        // ✅ Hiển thị dynamic attributes
+        StringBuilder stats = new StringBuilder();
+        if (item.getAttribute("hp") > 0) {
+            stats.append(String.format("HP: +%.0f   ", item.getAttribute("hp")));
+        }
+        if (item.getAttribute("mp") > 0) {
+            stats.append(String.format("MP: +%.0f   ", item.getAttribute("mp")));
+        }
+        if (item.getAttribute("spd") > 0) {
+            stats.append(String.format("SPD: +%.0f   ", item.getAttribute("spd")));
+        }
+        if (item.getAttribute("dmg") > 0) {
+            stats.append(String.format("DMG: +%.0f   ", item.getAttribute("dmg")));
+        }
+        if (item.getAttribute("defense") > 0) {
+            stats.append(String.format("DEF: +%.0f   ", item.getAttribute("defense")));
+        }
+        if (item.getAttribute("crit") > 0) {
+            stats.append(String.format("CRIT: +%.0f%%   ", item.getAttribute("crit") * 100));
+        }
+        
+        lblStats.setText(stats.length() > 0 ? stats.toString() : "No stat bonuses");
 
         if (item.discount > 0) {
             lblPrice.setText(
@@ -62,7 +81,7 @@ public class ShopItemCell extends ListCell<ShopItem> {
             lblPrice.setText("Price: " + item.price);
         }
 
-        lblStock.setText("Stock: " + item.stock);
+        lblStock.setText(item.stock > 0 ? "Stock: " + item.stock : "Stock: Unlimited");
 
         setGraphic(container);
     }
