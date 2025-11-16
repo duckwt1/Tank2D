@@ -86,14 +86,23 @@ public class ShopController implements PacketListener {
                 String name = (String) itemData.get("name");
                 String description = (String) itemData.get("description");
                 int price = ((Number) itemData.get("price")).intValue();
-                double hp = ((Number) itemData.getOrDefault("hp", 0)).doubleValue();
-                double mp = ((Number) itemData.getOrDefault("mp", 0)).doubleValue();
-                double spd = ((Number) itemData.getOrDefault("spd", 0)).doubleValue();
-                double dmg = ((Number) itemData.getOrDefault("dmg", 0)).doubleValue();
                 double discount = ((Number) itemData.getOrDefault("discount", 0.0)).doubleValue();
                 int stock = ((Number) itemData.getOrDefault("stock", 0)).intValue();
                 
-                ShopItem item = new ShopItem(id, name, description, price, hp, mp, spd, dmg, discount, stock);
+                // ✅ Parse dynamic attributes
+                Map<String, Double> attributes = new java.util.HashMap<>();
+                Object attrObj = itemData.get("attributes");
+                if (attrObj instanceof Map) {
+                    Map<?, ?> attrMap = (Map<?, ?>) attrObj;
+                    for (Map.Entry<?, ?> entry : attrMap.entrySet()) {
+                        String key = String.valueOf(entry.getKey());
+                        double value = entry.getValue() instanceof Number ? 
+                            ((Number) entry.getValue()).doubleValue() : 0.0;
+                        attributes.put(key, value);
+                    }
+                }
+                
+                ShopItem item = new ShopItem(id, name, description, price, discount, stock, attributes);
                 shopItems.add(item);
             }
             listShopItems.getItems().setAll(shopItems);
